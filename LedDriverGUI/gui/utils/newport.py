@@ -320,7 +320,7 @@ class NewPortWrapper:
             print(nd.status)
             sys.exit(1)
 
-    def measure_power(self):
+    def measurePower(self):
         """
         Measures the power using the Newport 1918-C Power Meter with default settings. 
         Timeout is set to 5 seconds, in case for some reason it disconnects.
@@ -343,6 +343,9 @@ class NewPortWrapper:
                     self.instrum = self.__init__() # untested
         return power
 
-    def set_instrum_wavelength(self, wavelength):
+    def setInstrumWavelength(self, wavelength):
         self.instrum.write(f"PM:Lambda {str(wavelength)}")
         assert (self.instrum.ask("PM:Lambda?") == str(wavelength))
+
+    def zeroPowerMeter(self):
+        self.instrum.write("PM:ZEROSTOre")

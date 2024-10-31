@@ -12,13 +12,13 @@ def _from_rgb(rgb):
 def run_gamma_check(self, dirname, step_size=1):
     instrum = NewPortWrapper()
     def record_power(control):
-        power = instrum.measure_power()
+        power = instrum.measurePower()
         print(f"{control}, {power}")
         with open(gamma_check_power_filename, 'a') as file: # dank as fuck but whatever
             file.write(f'{control},{power},\n')
 
     for led in [0, 1, 2]:
-        instrum.set_instrum_wavelength(self.peak_wavelengths[led])
+        instrum.setInstrumWavelength(self.peak_wavelengths[led])
         
         gamma_check_power_filename = os.path.join(self.dirname, f'gamma_check_{led}.csv')
         with open(gamma_check_power_filename, 'w') as file:

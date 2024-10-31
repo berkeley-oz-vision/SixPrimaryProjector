@@ -2,7 +2,26 @@ import sys
 import os
 
 from datetime import datetime
-from PyQt5.QtWidgets import QLabel, QDialog, QPushButton, QFileDialog
+from PyQt5 import QtGui
+from PyQt5.QtWidgets import QLabel, QDialog, QPushButton, QFileDialog, QWidget
+
+
+class FullscreenWindow(QWidget):
+    def __init__(self, screen_geometry):
+        super().__init__()
+        self.setWindowTitle("Fullscreen Window")
+
+        # Set the window geometry to match the specified monitor
+        self.setGeometry(screen_geometry.x, screen_geometry.y, screen_geometry.width, screen_geometry.height)
+        self.showFullScreen()  # Set to fullscreen
+
+    def change_background_color(self, r, g, b):
+        # Set the background color using the given RGB values
+        color = QtGui.QColor(r, g, b)
+        palette = self.palette()
+        palette.setColor(QtGui.QPalette.Window, color)
+        self.setPalette(palette)
+        self.setAutoFillBackground(True)
 
 class FolderSelectionDialogue(QDialog):
     def __init__(self, folder_selection_prompt, base_path, base_name):
@@ -138,6 +157,12 @@ class IntegerListDialog(QDialog):
         except ValueError:
             QMessageBox.warning(self, "Error", "Please enter only integers separated by commas.")
 
+
+def promptForFolderSelection(folder_selection_prompt, base_path, base_name):
+    dialog = FolderSelectionDialogue(folder_selection_prompt, base_path, base_name)
+    if dialog.exec_() == QDialog.Accepted:
+        return dialog.selected_folder
+    return dialog.selected_folder
 
 def promptForLUTSaveFile():
     dialog = CSVFilenameDialog("Enter Filename or Choose LUT CSV for Saving: ")

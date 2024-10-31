@@ -50,7 +50,7 @@ def createAllOnSequenceFile(filename, pwm, current, mode='RGB'):
         file.write("LED #,LED PWM (%),LED current (%),Duration (s)\n")
         for j in range(8):
             for i in range(3):
-                file.write(f"1, {pwm * 100}, {current * 100}, {mapping[i]}\n")
+                file.write(f"1, {pwm}, {current}, {mapping[i]}\n")
 
 
 
