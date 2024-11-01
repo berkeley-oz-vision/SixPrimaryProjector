@@ -12,7 +12,7 @@ from screeninfo import get_monitors
 from simple_pid import PID
 import tkinter as tk
 
-from LedDriverGUI.gui.utils.newport import Newport_1918c
+from LedDriverGUI.gui.utils.newport import NewPortWrapper
 import LedDriverGUI.gui.guiSequence as seq
 from LedDriverGUI.gui.windows.calibrationSelection import promptForLUTSaveFile, promptForLUTStartingValues, promptForLEDList, FullscreenWindow, promptForFolderSelection
 from LedDriverGUI.gui.utils.sequenceFiles import createAllOnSequenceFile, createSequenceFileRGBOCV
@@ -46,8 +46,7 @@ class LUTMeasurement:
 
         # configure measurement
         self.measurement_wavelength = wavelength
-        self.instrum = Newport_1918c() if not debug else None
-
+        self.instrum = NewPortWrapper() if not debug else None
         self.openCalibrationWindow()
 
     def getSecondScreenGeometry(self):
@@ -66,7 +65,6 @@ class LUTMeasurement:
             else:
                 return monitors[0]
         self.calibration_window = FullscreenWindow(getSecondScreenGeometry())
-        self.setBackgroundColor((0, 0, 0))
         self.calibration_window.show()
 
 
@@ -134,8 +132,8 @@ class LUTMeasurement:
         df = pd.read_csv(seq_file)
 
         # Edit a specific cell by row and column indices
-        df.at[row_number, 'LED PWM'] = pwm  # Modify the value at a specific cell
-        df.at[row_number, 'LED current'] = current  # Modify the value at a specific cell
+        df.at[row_number, 'LED PWM (%)'] = pwm  # Modify the value at a specific cell
+        df.at[row_number, 'LED current (%)'] = current  # Modify the value at a specific cell
 
         # Save the updated DataFrame back to CSV
         df.to_csv(seq_file, index=False) 
@@ -147,8 +145,6 @@ class LUTMeasurement:
 
         self.editSequenceFile(seq_file, led, level, pwm, current, mode)
         self.setTableToMode(led)
-        # give some time for the hardware to catchup
-        time.sleep(self.sleep_time)
     
 
     def setTableToMode(self, led):
@@ -220,14 +216,14 @@ class LUTMeasurement:
             self.zeroBackground()
 
             if not self.debug:
-                self.instrum.set_instrum_wavelength(self.peak_wavelengths[led])
+                self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
             last_control = 0
             for level_idx, level in enumerate(self.levels):
                 if level_idx == 0: # skip the 128 mask, as we're going to take whatever the 80 mask says.
                     continue 
                 # set background color to the level we're measuring
                 color = [0, 0, 0]
-                color[led_idx % 3] == level
+                color[led_idx % 3] = level
                 self.setBackgroundColor(color)
 
                 # setup PID for this mask
@@ -242,14 +238,14 @@ class LUTMeasurement:
                 start_time = time.time()
                 # send sequence to device, and then measure
                 self.sendUpdatedSeqTable(led, level_idx, starting_control, 1)
-                power = self.instrum.measure_power() if not self.debug else 0.1
+                power = self.instrum.measurePower() if not self.debug else 0.1
 
                 itr = 0
                 while True:
                     control = pid(power, dt=0.01)
                     # send the sequence to the device & measure
                     self.sendUpdatedSeqTable(led, level_idx, control, 1)
-                    power = self.instrum.measure_power() if not self.debug else 0.1
+                    power = self.instrum.measurePower() if not self.debug else 0.1
 
                     print(control, power, set_point)
 
@@ -261,7 +257,7 @@ class LUTMeasurement:
                     itr = itr + 1
                     if power - pid.setpoint < self.threshold: # always finetune to the positive value
                         logging.info(f'Gamma calibration for led {led} level {level} complete - Control: {control} Power: {power}')
-                        self.fig.savefig(os.path.join(self.plot_dirname, f'gamma_calibration_{led}_{level}.png'))
+                        # self.fig.savefig(os.path.join(self.plot_dirname, f'gamma_calibration_{led}_{level}.png'))
                         plt.close(self.fig)
                         break
 
@@ -282,8 +278,7 @@ class LUTMeasurement:
 
 def runLUTCalibration(gui):
     folder_name = promptForFolderSelection("Select LUT Folder", os.path.join(ROOT_DIR, 'sequence-tables'), 'LUT')
-        
-    calibpid = LUTMeasurement(gui, folder_name, sleep_time=2, threshold=0.001, debug=True)
+    calibpid = LUTMeasurement(gui, folder_name, sleep_time=2, threshold=0.001, debug=False)
     max_percentage = 0.8
     led_list = list(range(6))
     max_powers_80 = calibpid.measureLevel(led_list, 128)
