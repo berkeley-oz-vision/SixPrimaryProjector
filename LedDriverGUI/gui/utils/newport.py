@@ -326,7 +326,7 @@ class NewPortWrapper:
         Timeout is set to 5 seconds, in case for some reason it disconnects.
         """
         def record_power():
-            power = 0 if self.debug else float(self.instrum.ask("PM:Power?")) * 1000000.0 # measure in microwatts
+            power = float(self.instrum.ask("PM:Power?")) * 1000000.0 # measure in microwatts
             return power
     
         num_tries = 5

@@ -7,6 +7,7 @@ import numpy as np
 import time
 import logging
 from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtCore import QTimer
 from screeninfo import get_monitors
 from simple_pid import PID
 import tkinter as tk
@@ -160,23 +161,56 @@ class LUTMeasurement:
 
     def zeroBackground(self):
         # zero out the power meter with black
-        self.setBackgroundColor((0, 0, 0))
-        time.sleep(1) # make sure it has changed
-        if not self.debug: self.instrum.zeroPowerMeter()
-    
+        self.setBackgroundColor([0, 0, 0])
+        if not self.debug:
+            self.instrum.zeroPowerMeter()
+            self.instrum.measurePower()
 
+    # TODO: garbage, need to redo.
     def measureLevel(self, leds, level):
         powers = []
-        for led in leds:
+
+        def setBackgroundtoZero(led):
+            self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
+            self.setBackgroundColor([0, 0, 0])
             self.setTableToMode(led)
-            self.zeroBackground()
-            if not self.debug:
-                self.instrum.set_instrum_wavelength(self.peak_wavelengths[led])
-            # set background color to the level we're measuring
+
+        def zeroPowerMeter():
+            self.instrum.zeroPowerMeter()
+
+        def changeColor(led_i):
             color = [0, 0, 0]
-            color[led % 3] == level
+            color[led_i % 3] = level
             self.setBackgroundColor(color)
-            powers+=[ self.instrum.measure_power() if not self.debug else 0.1]
+
+        def measurePower():
+            nonlocal powers
+            powers += [self.instrum.measurePower() if not self.debug else 0.1]
+
+        def foo(queue):
+            queue.pop()
+            # do stuff
+            if queue.len() != 0:
+                QTimer.singleShot(wait_time, lambda queue: foo(queue))
+
+
+        SLEEP_TIME:int = 5
+        SLEEP_TIME_MS:int = SLEEP_TIME * 1000
+        wait_time = 0
+        print(f'LED list {leds}')
+
+        task_queue = []
+
+        for led in leds:
+
+            wait_time += SLEEP_TIME_MS
+            QTimer.singleShot(wait_time, lambda led_i=led: setBackgroundtoZero(led_i))
+            wait_time += SLEEP_TIME_MS
+            QTimer.singleShot(wait_time, zeroPowerMeter)
+            wait_time += SLEEP_TIME_MS
+            QTimer.singleShot(wait_time, lambda led_i=led: changeColor(led_i))
+            wait_time += SLEEP_TIME_MS
+            QTimer.singleShot(wait_time, measurePower)
         return powers
 
 
@@ -253,8 +287,14 @@ def runLUTCalibration(gui):
     max_percentage = 0.8
     led_list = list(range(6))
     max_powers_80 = calibpid.measureLevel(led_list, 128)
+    print(max_powers_80)
+
     set_points = [[ power/level for level in calibpid.levels] for power in max_powers_80 ]
     start_points = [[max_percentage for _ in range(8)] for _ in range(6)]
+
+    print(set_points)
+    print(max_percentage)
+    return
     calibpid.setCalibrationParams(led_list, set_points, start_points)
     calibpid.runCalibration()
 

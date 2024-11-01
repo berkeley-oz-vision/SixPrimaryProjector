@@ -15,6 +15,7 @@ class FullscreenWindow(QWidget):
         self.setGeometry(screen_geometry.x, screen_geometry.y, screen_geometry.width, screen_geometry.height)
         self.showFullScreen()  # Set to fullscreen
 
+        self.change_background_color(0, 0, 0)
     def change_background_color(self, r, g, b):
         # Set the background color using the given RGB values
         color = QtGui.QColor(r, g, b)
