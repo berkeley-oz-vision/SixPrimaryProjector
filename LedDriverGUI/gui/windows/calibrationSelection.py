@@ -3,26 +3,100 @@ import os
 
 from datetime import datetime
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import QLabel, QDialog, QPushButton, QFileDialog, QWidget
+from PyQt5.QtWidgets import QLabel, QDialog, QPushButton, QFileDialog, QWidget, QMainWindow
 
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
+class PlotWidget(QWidget):
+    def __init__(self, title, x_label, y_label):
+        super().__init__()
+        self.layout = QVBoxLayout()
+        
+        # Create a Matplotlib figure and axis
+        self.figure = Figure()
+        self.canvas = FigureCanvas(self.figure)
+        self.ax = self.figure.add_subplot(111)
+        
+        self.layout.addWidget(self.canvas)
+        self.setLayout(self.layout)
+
+        self.x_data = []
+        self.y_data = []
+
+        # Initialize the plot
+        self.ax.set_title(title)
+        self.ax.set_xlabel(x_label)
+        self.ax.set_ylabel(y_label)
+        self.line, = self.ax.plot(self.x_data, self.y_data)
+
+    def update_plot(self, x, y):
+        """Update the plot with new data."""
+        self.x_data.append(x)  # Incremental x value
+        self.y_data.append(y)
+        self.line.set_data(self.x_data, self.y_data)
+        self.ax.relim()  # Recalculate limits
+        self.ax.autoscale_view()  # Autoscale view
+        self.canvas.draw()  # Refresh the canvas
+
+    def reset_plot(self):
+        """Reset the plot."""
+        self.x_data = []
+        self.y_data = []
+        self.line.set_data([], [])
+        self.ax.relim()
+        self.ax.autoscale_view()
+        self.canvas.draw()
 
 class FullscreenWindow(QWidget):
     def __init__(self, screen_geometry):
         super().__init__()
         self.setWindowTitle("Fullscreen Window")
 
-        # Set the window geometry to match the specified monitor
+        # Move the window to the second monitor's position
         self.setGeometry(screen_geometry.x, screen_geometry.y, screen_geometry.width, screen_geometry.height)
-        self.showFullScreen()  # Set to fullscreen
 
-        self.change_background_color(0, 0, 0)
-    def change_background_color(self, r, g, b):
+        # Optionally maximize the window to fill the screen
+        # self.showMaximized()  # Maximize instead of fullscreen for better compatibility with macOS
+        self.showFullScreen()
+        # Set the initial background color
+        self.change_background_color(QtGui.QColor(0, 0, 0))  # Black background
+
+    def change_background_color(self, color):
         # Set the background color using the given RGB values
-        color = QtGui.QColor(r, g, b)
         palette = self.palette()
         palette.setColor(QtGui.QPalette.Window, color)
         self.setPalette(palette)
         self.setAutoFillBackground(True)
+
+class PlotMonitor(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("PID Monitor")
+
+        # Create layout and widgets
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.layout = QVBoxLayout(self.central_widget)
+
+        # Create two PlotWidget instances
+        self.plot_widget_1 = PlotWidget('Elapsed Time vs. Power', 'Elapsed Time (s)', 'Power (%)')
+        self.plot_widget_2 = PlotWidget('Control vs. Power', 'Control Value', 'Power (%)')
+        
+        # Add both plot widgets to the layout
+        self.layout.addWidget(self.plot_widget_1)
+        self.layout.addWidget(self.plot_widget_2)
+
+    def update_both_plots(self, x1, y1, x2, y2):
+        """Update both plots with new data."""
+        self.plot_widget_1.update_plot(x1, y1)
+        self.plot_widget_2.update_plot(x2, y2)
+
+    def reset_plots(self):
+        """Reset both plots."""
+        self.plot_widget_1.reset_plot()
+        self.plot_widget_2.reset_plot()
+
 
 class FolderSelectionDialogue(QDialog):
     def __init__(self, folder_selection_prompt, base_path, base_name):
@@ -53,7 +127,7 @@ class FolderSelectionDialogue(QDialog):
         initial_directory = '/path/to/your/folder'  # Change this to your target folder
 
         # Open the folder selection dialog
-        self.selected_folder = QFileDialog.getExistingDirectory(self, 'Select Folder', initial_directory)
+        self.selected_folder = QFileDialog.getExistingDirectory(self, 'Select Folder', self.base_path)
 
         if self.selected_folder:
             # Update the label with the selected folder path
