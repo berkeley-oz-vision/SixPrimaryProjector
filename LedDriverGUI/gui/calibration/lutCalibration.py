@@ -17,13 +17,14 @@ from LedDriverGUI.gui.utils.sequenceFiles import createAllOnSequenceFile
 
 ROOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "measurements")
 
+
 class LUTMeasurement(QThread):
     display_color = pyqtSignal(QColor)
     data_generated = pyqtSignal(float, float, float, float)
     reset_plot_signal = pyqtSignal()
     send_seq_table = pyqtSignal(str)
 
-    def __init__(self, gui, lut_directory=None, gamma_directory=None, starting_pwm=0.8, starting_current=1.0, sleep_time=3, wavelength=660, threshold=0.001, debug=False):
+    def __init__(self, gui, lut_directory: str | None, gamma_directory: str | None = None, starting_pwm=0.8, starting_current=1.0, sleep_time=3, wavelength=660, threshold=0.001, debug=False):
         super().__init__()
         self.gui = gui
         self.debug = debug
@@ -41,7 +42,10 @@ class LUTMeasurement(QThread):
         self.peak_wavelengths = [630, 550, 450, 590, 510, 410]
 
         # configure LUT Directory
-        self.lut_directory = lut_directory
+        if self.lut_directory is None:
+            raise ValueError("LUT Directory must be provided")
+        else:
+            self.lut_directory: str = str(lut_directory)
         os.makedirs(self.lut_directory, exist_ok=True)
         self.lut_rgb_path = os.path.join(self.lut_directory, 'rgb.csv')
         if not os.path.exists(self.lut_rgb_path):
@@ -54,12 +58,11 @@ class LUTMeasurement(QThread):
         self.gamma_directory = gamma_directory
         # configure measurement
         self.measurement_wavelength = wavelength
-        self.instrum = NewPortWrapper() if not debug else None
+        self.instrum = NewPortWrapper()
 
     def setBackgroundColor(self, color):
         self.display_color.emit(QColor(color[0], color[1], color[2]))
         time.sleep(self.sleep_time)
-    
 
     def editSequenceFile(self, seq_file, led, level, pwm, current=1):
         # convert led and level into a row number
@@ -72,7 +75,6 @@ class LUTMeasurement(QThread):
 
         # Save the updated DataFrame back to CSV
         df.to_csv(seq_file, index=False)
-    
 
     def sendUpdatedSeqTable(self, led, level, pwm, current):
         mode = 'RGB' if led < 3 else 'OCV'
@@ -80,7 +82,6 @@ class LUTMeasurement(QThread):
 
         self.editSequenceFile(seq_file, led, level, pwm, current)
         self.setTableToMode(led)
-    
 
     def setTableToMode(self, led):
         seq_file = self.lut_rgb_path if led < 3 else self.lut_ocv_path
@@ -93,7 +94,6 @@ class LUTMeasurement(QThread):
         #     seq.loadSequence(self.gui, self.gui.sync_digital_high_sequence_table, seq_file)  # load the sequence
         #     self.gui.ser.uploadSyncConfiguration()
         #     print("after sending tables")
-
 
     def zeroBackground(self, led):
         self.setBackgroundColor([0, 0, 0])
@@ -108,14 +108,14 @@ class LUTMeasurement(QThread):
 
         for led in leds:
             self.zeroBackground(led)
-            
+
             color = [0, 0, 0]
             color[led % 3] = level
             self.setBackgroundColor(color)
             time.sleep(self.sleep_time)
             powers += [self.instrum.measurePower() if not self.debug else 0.1]
-            time.sleep(self.sleep_time) # need to sleep as measurePower has no automatic sleep
-            
+            time.sleep(self.sleep_time)  # need to sleep as measurePower has no automatic sleep
+
         return powers
 
     def plotPidData(self, elapsed_time, power, control):
@@ -128,10 +128,10 @@ class LUTMeasurement(QThread):
 
             if not self.debug:
                 self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
-            last_control = 0
+            last_control = 0.0
             for level_idx, level in enumerate(self.levels):
-                if level_idx == 0: # skip the 128 mask, as we're going to take whatever the first mask says since we measured it
-                    continue 
+                if level_idx == 0:  # skip the 128 mask, as we're going to take whatever the first mask says since we measured it
+                    continue
                 # set background color to the level we're measuring
                 color = [0, 0, 0]
                 color[led % 3] = level
@@ -140,7 +140,8 @@ class LUTMeasurement(QThread):
                 # setup PID for this mask
                 set_point = self.set_points[led_idx][level_idx]
                 starting_control = self.start_control_vals[led_idx][level_idx]
-                pid = PID(0.00139, 0.2 * (2**(level_idx + 8)), 0.00000052, setpoint=set_point, sample_time=None, starting_output=starting_control)
+                pid = PID(0.00139, 0.2 * (2**(level_idx + 8)), 0.00000052, setpoint=set_point,
+                          sample_time=None, starting_output=starting_control)
                 pid.output_limits = (0, 1)
 
                 self.reset_plot_signal.emit()
@@ -157,7 +158,7 @@ class LUTMeasurement(QThread):
                     # send the sequence to the device & measure
                     self.sendUpdatedSeqTable(led, level_idx, control, 1)
                     power = self.instrum.measurePower() if not self.debug else 0.1
-                    time.sleep(0.1)
+                    time.sleep(0.2)
 
                     print(led, level, control, power, set_point)
 
@@ -166,18 +167,38 @@ class LUTMeasurement(QThread):
                     self.plotPidData(elapsed_time, power, control)
 
                     itr = itr + 1
-                    if power - pid.setpoint < self.threshold: # always finetune to the positive value
+                    if power - pid.setpoint < self.threshold:  # always finetune to the positive value
                         # logging.info(f'Gamma calibration for led {led} level {level} complete - Control: {control} Power: {power}')
-                        break
+                        print("Checking if stable...")
+                        powers = []
+                        for i in range(5):
+                            powers += [self.instrum.measurePower() if not self.debug else 0.1]
+                            time.sleep(0.1)
 
-                    if abs(control - last_control) <= float(1/65535) and itr > 3: # less than 8 bit precision
+                        if np.mean(powers) - pid.setpoint < self.threshold:
+                            print("Control is stable. Breaking and Moving onto next bitmask")
+                            break
+                        else:
+                            print("Control is not stable. Continuing to finetune.")
+                            continue
+
+                    if abs(control - last_control) <= float(1/65535) and itr > 3:  # less than 8 bit precision
                         # logging.info(f'Gamma calibration for led {led} level {level} did not finish - Control: {control}, Power: {power}')
+                        print("Control is not within bit precision. Breaking and Moving onto Next Bit Mask")
                         break
 
                     last_control = control
 
+    def checkGammaDirectory(self):
+        if self.gamma_directory is None:
+            raise ValueError("Gamma Directory must be provided")
+        else:
+            self.gamma_directory = str(self.gamma_directory)
+        os.makedirs(self.gamma_directory, exist_ok=True)
+
     def runGammaCheck(self):
         self.led_list = [0, 1, 2, 3, 5]
+        self.checkGammaDirectory()
         for led_idx, led in enumerate(self.led_list):
             gamma_check_power_filename = os.path.join(self.gamma_directory, f'gamma_check_{led}.csv')
             with open(gamma_check_power_filename, 'w') as file:
@@ -201,10 +222,40 @@ class LUTMeasurement(QThread):
                 time.sleep(0.5)
         return
 
+    def runLUTCheck(self):
+        self.led_list = [0, 1, 2, 3, 5]
+        lut_checks = [[2 ** i - 1, 2**i] for i in range(1, 8)]
+        lut_checks = [item for sublist in lut_checks for item in sublist]
+
+        self.checkGammaDirectory()
+        for led_idx, led in enumerate(self.led_list):
+            gamma_check_power_filename = os.path.join(self.gamma_directory, f'gamma_check_{led}.csv')
+            with open(gamma_check_power_filename, 'w') as file:
+                file.write('Control,Power\n')
+            self.setTableToMode(led)
+            self.zeroBackground(led)
+
+            if not self.debug:
+                self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
+            last_control = 0
+
+            for i in [2**i for i in range(8)]:
+                # set background color to the level we're measuring
+                color = [0, 0, 0]
+                color[led % 3] = i
+                self.setBackgroundColor(color)
+
+                power = self.instrum.measurePower() if not self.debug else 0.1
+                with open(gamma_check_power_filename, 'a') as file:
+                    file.write(f'{i},{power},\n')
+                print(f"Led: {led}, color: {color}, power: {power}")
+                time.sleep(0.5)
+        return
+
     def runLutCalibration(self):
         max_percentage = 0.8
         # led_list = list(range(6))
-        led_list = [0, 1, 2, 3, 5] # GBOV
+        led_list = [0, 1, 2, 3, 5]  # GBOV
         max_powers_80 = self.measureLevel(led_list, 128)
 
         num_bitmasks = len(self.levels)
@@ -230,6 +281,7 @@ def getSecondScreenGeometry():
     else:
         return monitors[0]
 
+
 class ConfigurationFile:
     def __init__(self, gui):
         self.gui = gui
@@ -239,20 +291,21 @@ class ConfigurationFile:
         seq.loadSequence(self.gui, self.gui.sync_digital_high_sequence_table, seq_file)  # load the sequence
         self.gui.ser.uploadSyncConfiguration()
 
+
 def runLUTCalibration(gui):
     folder_name = promptForFolderSelection("Select LUT Folder", os.path.join(ROOT_DIR, 'sequence-tables'), 'LUT')
     gui.calibration_window = FullscreenWindow(getSecondScreenGeometry())
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, folder_name, sleep_time=2, threshold=0.001, debug=False)
+    gui.calibpid = LUTMeasurement(gui, folder_name, sleep_time=2, threshold=0.0001, debug=False)
     calibpid = gui.calibpid
 
     gui.config = ConfigurationFile(gui)
 
     gui.plotting_window = PlotMonitor()
     gui.plotting_window.show()
-    
+
     thread = QThread()
     calibpid.send_seq_table.connect(gui.config.uploadConfig)
     calibpid.display_color.connect(calibration_window.change_background_color)
@@ -269,9 +322,47 @@ def runLUTCalibration(gui):
         thread.quit()  # Stop the thread
         thread.wait()  # Wait for the thread to finish
         thread.deleteLater()  # Safely delete the thread
-        
+
     # Connect thread's start signal to the worker's task directly
     thread.started.connect(calibpid.runLutCalibration)
+    thread.finished.connect(lambda: cleanup(gui))
+    thread.start()
+
+
+def runLUTCheck(gui):
+    folder_name = promptForFolderSelection("Select LUT Folder", os.path.join(ROOT_DIR, 'sequence-tables'), 'LUT')
+    gamma_folder_name = promptForFolderSelection("Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma')
+    gui.calibration_window = FullscreenWindow(getSecondScreenGeometry())
+    calibration_window = gui.calibration_window
+
+    # calibpid is the worker
+    gui.calibpid = LUTMeasurement(gui, folder_name, gamma_folder_name, sleep_time=2, threshold=0.001, debug=False)
+    calibpid = gui.calibpid
+
+    gui.config = ConfigurationFile(gui)
+
+    gui.plotting_window = PlotMonitor()
+    # gui.plotting_window.show()
+
+    thread = QThread()
+    calibpid.send_seq_table.connect(gui.config.uploadConfig)
+    calibpid.display_color.connect(calibration_window.change_background_color)
+    calibpid.data_generated.connect(gui.plotting_window.update_both_plots)
+    calibpid.reset_plot_signal.connect(gui.plotting_window.reset_plots)
+    calibpid.moveToThread(thread)
+
+    def cleanup(gui):
+        """Cleanup after thread finishes."""
+        print("Cleaning up worker thread.")
+        # TODO: Doesn't seem to get called?
+        gui.calibration_window.close()
+        gui.plotting_window.close()
+        thread.quit()  # Stop the thread
+        thread.wait()  # Wait for the thread to finish
+        thread.deleteLater()  # Safely delete the thread
+
+    # Connect thread's start signal to the worker's task directly
+    thread.started.connect(calibpid.runGammaCheck)
     thread.finished.connect(lambda: cleanup(gui))
     thread.start()
 
@@ -312,65 +403,3 @@ def runGammaCheck(gui):
     thread.started.connect(calibpid.runGammaCheck)
     thread.finished.connect(lambda: cleanup(gui))
     thread.start()
-
-def runGammaCheckNotWorking(gui):
-    LUT_folder_name = promptForFolderSelection("Select LUT Folder", os.path.join(ROOT_DIR, 'sequence-tables'), 'LUT')
-    gamma_folder_name = promptForFolderSelection("Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma')
-
-    gui.calibration_window = FullscreenWindow(getSecondScreenGeometry())
-    calibration_window = gui.calibration_window
-
-    # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, lut_directory=LUT_folder_name, gamma_directory=gamma_folder_name, sleep_time=2, threshold=0.001, debug=False)
-    calibpid = gui.calibpid
-
-    print(LUT_folder_name)
-    print(gamma_folder_name)
-
-    gui.config = ConfigurationFile(gui)
-
-    thread = QThread()
-    calibpid.send_seq_table.connect(gui.config.uploadConfig)
-    calibpid.display_color.connect(calibration_window.change_background_color)
-    calibpid.moveToThread(thread)
-
-    # Connect thread's start signal to the worker's task directly
-    thread.started.connect(calibpid.runGammaCheck)
-    thread.start()
-
-
-# TODO: Fix the rest of these after getting it to work
-def runLUTCheck(gui):
-    LUT_file, _ = QFileDialog.getOpenFileName(None, "Select LUT File")
-    seqtable = LUTMeasurement(gui, LUT_file, sleep_time=2, threshold=0.001, debug=True)
-    seqtable.measureAllBitMasks(LUT_file)
-
-
-def runLUTFineTune(gui):
-    starting_values_filename = promptForLUTStartingValues()
-    csv_filename = promptForLUTSaveFile()
-    
-    calibpid = LUTMeasurement(gui, csv_filename, sleep_time=2, threshold=0.001, debug=True)
-    max_percentage = 0.8
-    max_powers_80 = calibpid.measureMaxBitMasks(percent_of_max=max_percentage)
-    set_points = [[ power/level for level in calibpid.levels] for power in max_powers_80 ]
-    df = pd.read_csv(starting_values_filename)
-    start_points = [[df[(df['LED'] == led) & (df['Level'] ==level)]['PWM'].item() for level in range(8)] for led in range(6)]
-    calibpid.setCalibrationParams(list(range(6)), set_points, start_points)
-    calibpid.runCalibration()
-
-
-def runLUTOnLEDs(gui):
-    starting_values_filename = promptForLUTStartingValues()
-    csv_filename = promptForLUTSaveFile()
-
-    leds = promptForLEDList()
-    
-    calibpid = LUTMeasurement(gui, csv_filename, sleep_time=2, threshold=0.001, debug=True)
-    max_percentage = 0.8
-    max_powers_80 = calibpid.measureMaxBitMasks(percent_of_max=max_percentage)
-    set_points = [[ power/level for level in calibpid.levels] for power in max_powers_80 ]
-    df = pd.read_csv(starting_values_filename)
-    start_points = [[df[(df['LED'] == led) & (df['Level'] ==level)]['PWM'].item() for level in range(8)] for led in range(6)]
-    calibpid.setCalibrationParams(leds, set_points, start_points)
-    calibpid.runCalibration()

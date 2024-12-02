@@ -1,3 +1,5 @@
+from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
+from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QLineEdit, QPushButton, QFileDialog, QLabel
 import sys
 import os
 
@@ -8,16 +10,17 @@ from PyQt5.QtWidgets import QLabel, QDialog, QPushButton, QFileDialog, QWidget, 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
+
 class PlotWidget(QWidget):
     def __init__(self, title, x_label, y_label):
         super().__init__()
         self.layout = QVBoxLayout()
-        
+
         # Create a Matplotlib figure and axis
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
         self.ax = self.figure.add_subplot(111)
-        
+
         self.layout.addWidget(self.canvas)
         self.setLayout(self.layout)
 
@@ -48,6 +51,7 @@ class PlotWidget(QWidget):
         self.ax.autoscale_view()
         self.canvas.draw()
 
+
 class FullscreenWindow(QWidget):
     def __init__(self, screen_geometry):
         super().__init__()
@@ -69,6 +73,7 @@ class FullscreenWindow(QWidget):
         self.setPalette(palette)
         self.setAutoFillBackground(True)
 
+
 class PlotMonitor(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -82,7 +87,7 @@ class PlotMonitor(QMainWindow):
         # Create two PlotWidget instances
         self.plot_widget_1 = PlotWidget('Elapsed Time vs. Power', 'Elapsed Time (s)', 'Power (%)')
         self.plot_widget_2 = PlotWidget('Control vs. Power', 'Control Value', 'Power (%)')
-        
+
         # Add both plot widgets to the layout
         self.layout.addWidget(self.plot_widget_1)
         self.layout.addWidget(self.plot_widget_2)
@@ -123,9 +128,6 @@ class FolderSelectionDialogue(QDialog):
         self.selected_folder = None
 
     def openFolderDialog(self):
-        # Specify the initial directory to open
-        initial_directory = '/path/to/your/folder'  # Change this to your target folder
-
         # Open the folder selection dialog
         self.selected_folder = QFileDialog.getExistingDirectory(self, 'Select Folder', self.base_path)
 
@@ -147,9 +149,6 @@ class FolderSelectionDialogue(QDialog):
         else:
             self.label.setText('Error: No folder selected!')
 
-
-import sys
-from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QLineEdit, QPushButton, QFileDialog, QLabel
 
 class CSVFilenameDialog(QDialog):
     def __init__(self, prompt):
@@ -193,9 +192,6 @@ class CSVFilenameDialog(QDialog):
         return self.filename_input.text()
 
 
-import sys
-from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
-
 class IntegerListDialog(QDialog):
     def __init__(self, prompt):
         super().__init__()
@@ -223,7 +219,7 @@ class IntegerListDialog(QDialog):
     def process_input(self):
         # Get the input from the text field
         user_input = self.input_field.text()
-        
+
         try:
             # Split the input by commas and strip any surrounding whitespace
             int_list = [int(num.strip()) for num in user_input.split(',')]
@@ -233,13 +229,14 @@ class IntegerListDialog(QDialog):
             QMessageBox.warning(self, "Error", "Please enter only integers separated by commas.")
 
 
-def promptForFolderSelection(folder_selection_prompt, base_path, base_name):
+def promptForFolderSelection(folder_selection_prompt, base_path, base_name) -> str | None:
     dialog = FolderSelectionDialogue(folder_selection_prompt, base_path, base_name)
     if dialog.exec_() == QDialog.Accepted:
         return dialog.selected_folder
     return dialog.selected_folder
 
-def promptForLUTSaveFile():
+
+def promptForLUTSaveFile() -> str | None:
     dialog = CSVFilenameDialog("Enter Filename or Choose LUT CSV for Saving: ")
     if dialog.exec_() == QDialog.Accepted:
         # Get the filename after the dialog is closed
@@ -247,7 +244,7 @@ def promptForLUTSaveFile():
         if csv_filename == "":
             raise ValueError("No file selected")
     return csv_filename
-        
+
 
 def promptForLUTStartingValues():
     dialog = CSVFilenameDialog("Choose LUT CSV for Starting Values: ")
@@ -257,6 +254,7 @@ def promptForLUTStartingValues():
         if starting_values_filename == "":
             raise ValueError("No file selected for starting values")
     return starting_values_filename
+
 
 def promptForLEDList():
     dialog = IntegerListDialog("Enter the list of LED indices separated by commas: ")
