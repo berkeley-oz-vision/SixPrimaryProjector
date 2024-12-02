@@ -43,14 +43,14 @@ def createAllOnSequenceFile(filename, pwm, current, mode='RGB'):
         createSequenceFile("led_sequence.csv", led=1, control=0.5, level=3)
     """
     if mode == 'RGB':
-        mapping = [6, 4, 2]
+        mapping = [7, 4, 2]
     else:
         mapping = [5, 3, 1]
     with open(filename, 'w') as file:
         file.write("LED #,LED PWM (%),LED current (%),Duration (s)\n")
         for j in range(8):
             for i in range(3):
-                file.write(f"1, {pwm}, {current}, {mapping[i]}\n")
+                file.write(f"1, {pwm * 100}, {current * 100}, {mapping[i]}\n")
 
 
 

@@ -4860,7 +4860,7 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
        </attribute>
        <layout class="QGridLayout" name="gridLayout_46">
         <item row="0" column="0">
-            <widget class="QPushButton" name="gamma_correction_button">
+            <widget class="QPushButton" name="LUT_calibration_button">
             <property name="toolTip">
                 <string>Run Gamma Correction Script Find Bit Plane Intensities</string>
             </property>
@@ -4875,32 +4875,12 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
          </widget> -->
         </item>
         <item row="1" column="0">
-            <widget class="QPushButton" name="finetune_calibration_button">
+            <widget class="QPushButton" name="gamma_check_button">
             <property name="toolTip">
-                <string>Run through all the bitmasks and calibrate with the last values as the starting points</string>
+                <string>Run through all values to check if it's linear.</string>
             </property>
             <property name="text">
-                <string>Run Finetune Calibration</string>
-            </property>
-            </widget>
-        </item>
-        <item row="2" column="0">
-            <widget class="QPushButton" name="finetune_specific_mask">
-            <property name="toolTip">
-                <string>Finetune a particular mask</string>
-            </property>
-            <property name="text">
-                <string>Run Finetune Calibration on a subset of LEDs</string>
-            </property>
-            </widget>
-        </item>
-        <item row="3" column="0">
-            <widget class="QPushButton" name="measure_bitmasks_button">
-            <property name="toolTip">
-                <string>Run through all the bitmasks and make sure they're relatively close to the original measurements.</string>
-            </property>
-            <property name="text">
-                <string>QC - Measure All Bitmasks</string>
+                <string>Run Gamma Function Check</string>
             </property>
             </widget>
         </item>

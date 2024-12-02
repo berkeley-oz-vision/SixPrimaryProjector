@@ -58,3 +58,7 @@ def run_gamma_check(self, dirname, step_size=1):
 
         start()
         root.mainloop()
+
+
+if __name__ == '__main__':
+    run_gamma_check("check-11-5", 1)

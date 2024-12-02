@@ -2,7 +2,7 @@ from collections import OrderedDict
 import LedDriverGUI.gui.guiSequence as seq
 import LedDriverGUI.gui.guiConfigIO as fileIO
 import LedDriverGUI.gui.utils.calibrationPlot as plot
-from LedDriverGUI.gui.calibration.lutCalibration import runLUTCalibration, runLUTCheck, runLUTFineTune, runLUTOnLEDs
+from LedDriverGUI.gui.calibration.lutCalibration import runLUTCalibration, runGammaCheck
 from PyQt5 import QtGui, QtCore
 
 def initializeConfigModel(gui):
@@ -329,10 +329,8 @@ def initializeEvents(gui):
         gui.sync_analog_output_PWM_avg_slider.valueChanged.connect(lambda: gui.updateAnalogSync("PWM"))
         gui.sync_analog_output_current_avg_slider.valueChanged.connect(lambda: gui.updateAnalogSync("current"))
 
-        gui.gamma_correction_button.clicked.connect(lambda: runLUTCalibration(gui))
-        gui.finetune_calibration_button.clicked.connect(lambda: runLUTFineTune(gui))
-        gui.finetune_specific_mask.clicked.connect(lambda: runLUTOnLEDs(gui))
-        gui.measure_bitmasks_button.clicked.connect(lambda: runLUTCheck(gui))
+        gui.LUT_calibration_button.clicked.connect(lambda: runLUTCalibration(gui))
+        gui.gamma_check_button.clicked.connect(lambda: runGammaCheck(gui))
 
         sequenceEvents()
         outputChannelEvents()
