@@ -42,18 +42,29 @@ class LUTMeasurement(QThread):
         self.peak_wavelengths = [630, 550, 450, 590, 510, 410]
 
         # configure LUT Directory
+
         if lut_directory is None:
             raise ValueError("LUT Directory must be provided")
         else:
             self.lut_directory: str = str(lut_directory)
         os.makedirs(self.lut_directory, exist_ok=True)
+        max_percentage = 0.8
         self.lut_rgb_path = os.path.join(self.lut_directory, 'rgb.csv')
         if not os.path.exists(self.lut_rgb_path):
             createAllOnSequenceFile(self.lut_rgb_path, starting_pwm, starting_current, mode='RGB')
 
+            rgb_start_points = [[max_percentage for _ in range(8)] for _ in range(3)]
+        else:
+            rgb_start_points = self.readOutSequenceFile(self.lut_rgb_path)
         self.lut_ocv_path = os.path.join(self.lut_directory, 'ocv.csv')
         if not os.path.exists(self.lut_ocv_path):
             createAllOnSequenceFile(self.lut_ocv_path, starting_pwm, starting_current, mode='OCV')
+            ocv_start_points = [[max_percentage for _ in range(8)] for _ in range(3)]
+        else:
+            ocv_start_points = self.readOutSequenceFile(self.lut_ocv_path)
+        self.start_points = rgb_start_points + ocv_start_points
+        print(self.start_points)
+
 
         self.gamma_directory = gamma_directory
         # configure measurement
@@ -75,6 +86,19 @@ class LUTMeasurement(QThread):
 
         # Save the updated DataFrame back to CSV
         df.to_csv(seq_file, index=False)
+
+    def readOutSequenceFile(self, seq_file):
+        df = pd.read_csv(seq_file)
+        df['LED PWM (%)'] = pd.to_numeric(df['LED PWM (%)'])
+        # Edit a specific cell by row and column indices
+        pwms = []
+        for led in range(3):
+            pwm_for_led = []
+            for level in range(8):
+                row_number = 3 * level + (led % 3)
+                pwm_for_led += [df.loc[row_number, 'LED PWM (%)']/100]
+            pwms += [pwm_for_led]
+        return pwms
 
     def sendUpdatedSeqTable(self, led, level, pwm, current):
         mode = 'RGB' if led < 3 else 'OCV'
@@ -168,7 +192,8 @@ class LUTMeasurement(QThread):
                     self.plotPidData(elapsed_time, power, control)
 
                     itr = itr + 1
-                    threshold = self.threshold / 10 if level < 16 else self.threshold
+                    # threshold= self.threshold
+                    threshold = self.threshold / 2 if level < 16 else self.threshold
                     if abs(power - pid.setpoint) < threshold and (power-pid.setpoint) > 0:  # always finetune to the positive value
                         # logging.info(f'Gamma calibration for led {led} level {level} complete - Control: {control} Power: {power}')
                         print("Checking if stable...")
@@ -255,18 +280,18 @@ class LUTMeasurement(QThread):
         return
 
     def runLutCalibration(self):
-        max_percentage = 0.8
-        # led_list = list(range(6))
-        led_list = [0, 1, 2, 3]  # GBOV
+        led_list = [2, 3]  # RGBO
         max_powers_80 = self.measureLevel(led_list, 128)
-        np.save('max-powers.npy', max_powers_80)
+        path_name = os.path.join(self.lut_directory, 'max-powers.npy')
+        np.save(path_name, max_powers_80)
         # max_powers_80 = np.load('max-powers.npy')
 
         num_bitmasks = len(self.levels)
         set_points = [[power/self.levels[num_bitmasks - i - 1] for i in range(num_bitmasks)] for power in max_powers_80]
-        start_points = [[max_percentage for _ in range(num_bitmasks)] for _ in range(len(led_list))]
 
-        self.setCalibrationParams(led_list, set_points, start_points)
+        # start_points = [[max_percentage for _ in range(num_bitmasks)] for _ in range(len(led_list))]
+        actual_start_points = [self.start_points[i] for i in led_list]
+        self.setCalibrationParams(led_list, set_points, actual_start_points)
         self.runCalibration()
 
     def setCalibrationParams(self, led_list, set_points, start_control_vals):
