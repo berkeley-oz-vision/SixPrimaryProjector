@@ -42,7 +42,7 @@ class LUTMeasurement(QThread):
         self.peak_wavelengths = [630, 550, 450, 590, 510, 410]
 
         # configure LUT Directory
-        if self.lut_directory is None:
+        if lut_directory is None:
             raise ValueError("LUT Directory must be provided")
         else:
             self.lut_directory: str = str(lut_directory)
@@ -132,6 +132,7 @@ class LUTMeasurement(QThread):
             for level_idx, level in enumerate(self.levels):
                 if level_idx == 0:  # skip the 128 mask, as we're going to take whatever the first mask says since we measured it
                     continue
+
                 # set background color to the level we're measuring
                 color = [0, 0, 0]
                 color[led % 3] = level
@@ -140,7 +141,7 @@ class LUTMeasurement(QThread):
                 # setup PID for this mask
                 set_point = self.set_points[led_idx][level_idx]
                 starting_control = self.start_control_vals[led_idx][level_idx]
-                pid = PID(0.00139, 0.2 * (2**(level_idx + 8)), 0.00000052, setpoint=set_point,
+                pid = PID(0.000139, 0.2 * 2**(level_idx + 7), 0.000000052, setpoint=set_point,
                           sample_time=None, starting_output=starting_control)
                 pid.output_limits = (0, 1)
 
@@ -167,7 +168,8 @@ class LUTMeasurement(QThread):
                     self.plotPidData(elapsed_time, power, control)
 
                     itr = itr + 1
-                    if power - pid.setpoint < self.threshold:  # always finetune to the positive value
+                    threshold = self.threshold / 10 if level < 16 else self.threshold
+                    if abs(power - pid.setpoint) < threshold and (power-pid.setpoint) > 0:  # always finetune to the positive value
                         # logging.info(f'Gamma calibration for led {led} level {level} complete - Control: {control} Power: {power}')
                         print("Checking if stable...")
                         powers = []
@@ -175,14 +177,14 @@ class LUTMeasurement(QThread):
                             powers += [self.instrum.measurePower() if not self.debug else 0.1]
                             time.sleep(0.1)
 
-                        if np.mean(powers) - pid.setpoint < self.threshold:
+                        if abs(np.mean(powers) - pid.setpoint) < threshold and (np.mean(powers)-pid.setpoint) > 0:
                             print("Control is stable. Breaking and Moving onto next bitmask")
                             break
                         else:
                             print("Control is not stable. Continuing to finetune.")
                             continue
 
-                    if abs(control - last_control) <= float(1/65535) and itr > 3:  # less than 8 bit precision
+                    if abs(control - last_control) <= float(1/65535 /2) and itr > 25:  # less than 8 bit precision
                         # logging.info(f'Gamma calibration for led {led} level {level} did not finish - Control: {control}, Power: {power}')
                         print("Control is not within bit precision. Breaking and Moving onto Next Bit Mask")
                         break
@@ -229,7 +231,7 @@ class LUTMeasurement(QThread):
 
         self.checkGammaDirectory()
         for led_idx, led in enumerate(self.led_list):
-            gamma_check_power_filename = os.path.join(self.gamma_directory, f'gamma_check_{led}.csv')
+            gamma_check_power_filename = os.path.join(self.gamma_directory, f'gamma_subset_{led}.csv')
             with open(gamma_check_power_filename, 'w') as file:
                 file.write('Control,Power\n')
             self.setTableToMode(led)
@@ -239,7 +241,7 @@ class LUTMeasurement(QThread):
                 self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
             last_control = 0
 
-            for i in [2**i for i in range(8)]:
+            for i in lut_checks:
                 # set background color to the level we're measuring
                 color = [0, 0, 0]
                 color[led % 3] = i
@@ -255,8 +257,10 @@ class LUTMeasurement(QThread):
     def runLutCalibration(self):
         max_percentage = 0.8
         # led_list = list(range(6))
-        led_list = [0, 1, 2, 3, 5]  # GBOV
+        led_list = [0, 1, 2, 3]  # GBOV
         max_powers_80 = self.measureLevel(led_list, 128)
+        np.save('max-powers.npy', max_powers_80)
+        # max_powers_80 = np.load('max-powers.npy')
 
         num_bitmasks = len(self.levels)
         set_points = [[power/self.levels[num_bitmasks - i - 1] for i in range(num_bitmasks)] for power in max_powers_80]
@@ -331,12 +335,12 @@ def runLUTCalibration(gui):
 
 def runLUTCheck(gui):
     folder_name = promptForFolderSelection("Select LUT Folder", os.path.join(ROOT_DIR, 'sequence-tables'), 'LUT')
-    gamma_folder_name = promptForFolderSelection("Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma')
+    gamma_folder_name = promptForFolderSelection("Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma_subset')
     gui.calibration_window = FullscreenWindow(getSecondScreenGeometry())
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, folder_name, gamma_folder_name, sleep_time=2, threshold=0.001, debug=False)
+    gui.calibpid = LUTMeasurement(gui, folder_name, gamma_folder_name, sleep_time=2)
     calibpid = gui.calibpid
 
     gui.config = ConfigurationFile(gui)
@@ -362,7 +366,7 @@ def runLUTCheck(gui):
         thread.deleteLater()  # Safely delete the thread
 
     # Connect thread's start signal to the worker's task directly
-    thread.started.connect(calibpid.runGammaCheck)
+    thread.started.connect(calibpid.runLUTCheck)
     thread.finished.connect(lambda: cleanup(gui))
     thread.start()
 
@@ -374,7 +378,7 @@ def runGammaCheck(gui):
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, folder_name, gamma_folder_name, sleep_time=2, threshold=0.001, debug=False)
+    gui.calibpid = LUTMeasurement(gui, folder_name, gamma_folder_name, sleep_time=2)
     calibpid = gui.calibpid
 
     gui.config = ConfigurationFile(gui)

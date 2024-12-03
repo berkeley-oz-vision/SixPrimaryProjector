@@ -4884,6 +4884,16 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
             </property>
             </widget>
         </item>
+        <item row="2" column="0">
+            <widget class="QPushButton" name="LUT_check_button">
+            <property name="toolTip">
+                <string>Run through bit masks and bitmasks - 1 values. </string>
+            </property>
+            <property name="text">
+                <string>Run LUT Bit Mask Check</string>
+            </property>
+            </widget>
+        </item>
        </layout>
       </widget>
      </widget>
