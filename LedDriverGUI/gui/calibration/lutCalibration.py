@@ -65,7 +65,6 @@ class LUTMeasurement(QThread):
         self.start_points = rgb_start_points + ocv_start_points
         print(self.start_points)
 
-
         self.gamma_directory = gamma_directory
         # configure measurement
         self.measurement_wavelength = wavelength
@@ -209,7 +208,7 @@ class LUTMeasurement(QThread):
                             print("Control is not stable. Continuing to finetune.")
                             continue
 
-                    if abs(control - last_control) <= float(1/65535 /2) and itr > 25:  # less than 8 bit precision
+                    if abs(control - last_control) <= float(1/65535 / 2) and itr > 25:  # less than 8 bit precision
                         # logging.info(f'Gamma calibration for led {led} level {level} did not finish - Control: {control}, Power: {power}')
                         print("Control is not within bit precision. Breaking and Moving onto Next Bit Mask")
                         break
@@ -360,7 +359,8 @@ def runLUTCalibration(gui):
 
 def runLUTCheck(gui):
     folder_name = promptForFolderSelection("Select LUT Folder", os.path.join(ROOT_DIR, 'sequence-tables'), 'LUT')
-    gamma_folder_name = promptForFolderSelection("Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma_subset')
+    gamma_folder_name = promptForFolderSelection(
+        "Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma_subset')
     gui.calibration_window = FullscreenWindow(getSecondScreenGeometry())
     calibration_window = gui.calibration_window
 
