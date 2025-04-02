@@ -9,25 +9,23 @@ import qdarkstyle  # This awesome style sheet was made by Colin Duquesnoy and Da
 from collections import OrderedDict, deque
 import os
 import pyqtgraph as pg
-import LedDriverGUI.gui.guiMapper as guiMapper
-import LedDriverGUI.gui.guiSequence as seq
-import LedDriverGUI.gui.guiConfigIO as fileIO
-import LedDriverGUI.gui.utils.calibrationPlot as plot
-import LedDriverGUI.gui.utils.driverUSB as driverUSB
-import time
+from .. import guiMapper
 import copy
 from timeit import default_timer as timer
 import datetime
 
-PLOT_PADDING = 1.1 #Factor of dark space above and below plot line so that plot line doesn't touch top of widget
-SLEW_TIME = 1e-6 #Time for LED to switch between intensities
-N_SAMPLES = 1000 #When plots exceed 2x this length, they will be binned back to this length
-STARTING_PLOT_RATE = 50 #Time between plot updates at start of plot
+PLOT_PADDING = 1.1  # Factor of dark space above and below plot line so that plot line doesn't touch top of widget
+SLEW_TIME = 1e-6  # Time for LED to switch between intensities
+N_SAMPLES = 1000  # When plots exceed 2x this length, they will be binned back to this length
+STARTING_PLOT_RATE = 50  # Time between plot updates at start of plot
 debug = False
 
+
 class syncPlotWindow(QtWidgets.QWidget):
-    sync_update_signal = QtCore.pyqtSignal(object)  # Need to initialize outside of init() https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
-    status_signal = QtCore.pyqtSignal(object)  # Need to initialize outside of init() https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
+    # Need to initialize outside of init() https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
+    sync_update_signal = QtCore.pyqtSignal(object)
+    # Need to initialize outside of init() https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
+    status_signal = QtCore.pyqtSignal(object)
 
     def __init__(self, app, main_window):
         self.app = app
@@ -39,14 +37,15 @@ class syncPlotWindow(QtWidgets.QWidget):
         # Set look and feel
         uic.loadUi(self.gui.resourcePath('Sync_Plot_GUI.ui'), self)
 
-        #Connect signals
-        self.status_emit = self.status_signal.emit #Function instance saved so it can later be disconnected explicitly
-        self.update_emit = self.sync_update_signal.emit #Function instance saved so it can later be disconnected explicitly
+        # Connect signals
+        self.status_emit = self.status_signal.emit  # Function instance saved so it can later be disconnected explicitly
+        self.update_emit = self.sync_update_signal.emit  # Function instance saved so it can later be disconnected explicitly
         self.gui.sync_update_signal.connect(self.update_emit)
         self.sync_update_signal.connect(self.updateWindow)  # Update status when new status signal is received
         self.gui.status_signal.connect(self.status_emit)  # Connect mainWindow status signal to dialog status signal
-        self.status_signal.connect(self.updateStatus) #Update status when new status signal is received
-        self.plot_timeline = guiMapper.TimeLine(loopCount=0, interval=STARTING_PLOT_RATE)  # Animation object for animating plots
+        self.status_signal.connect(self.updateStatus)  # Update status when new status signal is received
+        # Animation object for animating plots
+        self.plot_timeline = guiMapper.TimeLine(loopCount=0, interval=STARTING_PLOT_RATE)
 
         # Set dark skin if in dark mode since skin is reverted when window is opened.
         if self.gui.menu_view_skins_dark.isChecked():
@@ -55,30 +54,32 @@ class syncPlotWindow(QtWidgets.QWidget):
             self.app.setStyleSheet("")
         self.app.setFont(QFont("MS Shell Dlg 2", 12))
 
-        #Initialize lists for storing plot data
+        # Initialize lists for storing plot data
         self.y_ref = [OrderedDict([("PWM", []), ("Current", []), ("Channel", [])]),
-                         OrderedDict([("PWM", []), ("Current", []), ("Channel", [])])] #Y values of reference sequence line
-        self.x_ref = [[], []] #X values of reference sequence line
+                      # Y values of reference sequence line
+                      OrderedDict([("PWM", []), ("Current", []), ("Channel", [])])]
+        self.x_ref = [[], []]  # X values of reference sequence line
         self.y_values = copy.deepcopy(self.y_ref)
         self.x_values = copy.deepcopy(self.x_ref)  # X values of reference sequence line
         self.status_dict = copy.deepcopy(self.gui.status_dict)
         self.resetStatus()
         self.seq_list = guiMapper.initializeSeqList(self.gui)
         self.seq_dict = self.gui.seq_dict
-        self.mode = None #Save active sync mode string
+        self.mode = None  # Save active sync mode string
 
-        #Plot widget data
+        # Plot widget data
         self.plots = [OrderedDict([("PWM", self.graph_intensity_pwm0), ("Current", self.graph_intensity_current0), ("Channel", self.graph_channel0)]),
                       OrderedDict([("PWM", self.graph_intensity_pwm1), ("Current", self.graph_intensity_current1), ("Channel", self.graph_channel1)])]
         self.state_dict = OrderedDict([("Digital", ["LOW", "HIGH"]), ("Analog", ["Active", "Active"]), ("Confocal", ["Standby", "Scanning"]),
                                        ("Serial", ["Active", "Active"]), ("Custom", ["Active", "Active"])])
         self.hold_label = [self.hold_label0, self.hold_label1]
 
-        #Timers for x-axis
-        self.plot_interval = STARTING_PLOT_RATE #Time between plot updates in milliseconds
+        # Timers for x-axis
+        self.plot_interval = STARTING_PLOT_RATE  # Time between plot updates in milliseconds
         self.plot_start_time = timer()  # Timer for tracking time points for x_axis
-        self.hold_start_time = timer() # Timer for tracking duration of hold at end of sequence
-        self.hold_status = [None, None] # State of plot hold (None = no hold, False = hold not yet reached, True = in hold)
+        self.hold_start_time = timer()  # Timer for tracking duration of hold at end of sequence
+        # State of plot hold (None = no hold, False = hold not yet reached, True = in hold)
+        self.hold_status = [None, None]
 
         for plot_dict in self.plots:
             for key, value in plot_dict.items():
@@ -110,7 +111,7 @@ class syncPlotWindow(QtWidgets.QWidget):
         status_plot.showAxis("right")
         status_plot.getAxis('right').setStyle(showValues=False)
 
-        #Set default axis labels
+        # Set default axis labels
         status_plot.setLabel('bottom', "Time", "s", **label_style)
         status_plot.setLabel('right', "Hold", **label_style)
 
@@ -129,7 +130,7 @@ class syncPlotWindow(QtWidgets.QWidget):
 
         sync_model = self.gui.sync_model
 
-        #Get the active sync mode
+        # Get the active sync mode
         self.mode = sync_model["Mode"].whatsThis()
         if not self.mode:
             self.mode = self.gui.getValue(sync_model["Mode"])
@@ -144,7 +145,7 @@ class syncPlotWindow(QtWidgets.QWidget):
                 if sync_model["Digital"][trigger]["Mode"].whatsThis() == "LED Off":
                     self.x_ref[index] = [0]  # Set duration to hold
                     for key in self.y_ref[index]:
-                        self.y_ref[index][key] = [0] # Set all intensities to 0, and channel is not changed (0)
+                        self.y_ref[index][key] = [0]  # Set all intensities to 0, and channel is not changed (0)
                 elif sync_model["Digital"][trigger]["Mode"].whatsThis() == "Constant Value":
                     duration = self.gui.getValue(sync_model["Digital"][trigger]["Duration"])
                     if duration == 0:
@@ -159,16 +160,20 @@ class syncPlotWindow(QtWidgets.QWidget):
                         if isinstance(sync_model["Digital"][trigger][model_key], list):
                             self.y_ref[index][key] = [widgetIndex(sync_model["Digital"][trigger][model_key])]
                             if duration > 0:
-                                self.y_ref[index][key].extend([widgetIndex(sync_model["Digital"][trigger][model_key]), 0]) #Extend to hold at off to intensity profile if intensity is pulsed for a fixed duration
+                                # Extend to hold at off to intensity profile if intensity is pulsed for a fixed duration
+                                self.y_ref[index][key].extend(
+                                    [widgetIndex(sync_model["Digital"][trigger][model_key]), 0])
                         else:
                             self.y_ref[index][key] = [self.gui.getValue(sync_model["Digital"][trigger][model_key])]
                             if duration > 0:
-                                self.y_ref[index][key].extend([self.gui.getValue(sync_model["Digital"][trigger][model_key]), 0]) #Extend to hold at off to intensity profile if intensity is pulsed for a fixed duration
+                                # Extend to hold at off to intensity profile if intensity is pulsed for a fixed duration
+                                self.y_ref[index][key].extend(
+                                    [self.gui.getValue(sync_model["Digital"][trigger][model_key]), 0])
                 else:
                     seq_widget = self.seq_list[index]
                     n_rows = len(self.seq_dict[seq_widget]["LED #"])
                     elapsed_time = 0
-                    if n_rows == 0: #If there isn't a sequence specified, default to holding the LED off
+                    if n_rows == 0:  # If there isn't a sequence specified, default to holding the LED off
                         self.x_ref[index] = [0]  # Set duration to hold
                         for key in self.y_ref[index]:
                             self.y_ref[index][key] = [0]  # Set all intensities to 0, and channel is not changed (0)
@@ -177,7 +182,7 @@ class syncPlotWindow(QtWidgets.QWidget):
                             self.y_ref[index][key] = []  # Clear all lists
                         self.x_ref[index] = []
 
-                        #If a hold isn't specified at the end of the sequence add a hold at off
+                        # If a hold isn't specified at the end of the sequence add a hold at off
                         if self.seq_dict[seq_widget]["Duration (s)"][n_rows-1] != 0:
                             for key in self.seq_dict[seq_widget]:
                                 self.seq_dict[seq_widget][key].append(0)
@@ -186,25 +191,29 @@ class syncPlotWindow(QtWidgets.QWidget):
                         for row in range(n_rows):
                             duration = float(self.seq_dict[seq_widget]["Duration (s)"][row])
                             self.x_ref[index].append(elapsed_time+SLEW_TIME)
-                            list_length = 1 #If hold is reached, only add one more time point
-                            if duration > 0: #If hold is not reached add two time points as sequence is a step function
+                            list_length = 1  # If hold is reached, only add one more time point
+                            if duration > 0:  # If hold is not reached add two time points as sequence is a step function
                                 self.x_ref[index].append(elapsed_time+duration)
                                 list_length = 2
-                            self.y_ref[index]["Channel"].extend([int(self.seq_dict[seq_widget]["LED #"][row])]*list_length)
-                            self.y_ref[index]["PWM"].extend([float(self.seq_dict[seq_widget]["LED PWM (%)"][row])]*list_length)
-                            self.y_ref[index]["Current"].extend([float(self.seq_dict[seq_widget]["LED current (%)"][row])]*list_length)
+                            self.y_ref[index]["Channel"].extend(
+                                [int(self.seq_dict[seq_widget]["LED #"][row])]*list_length)
+                            self.y_ref[index]["PWM"].extend(
+                                [float(self.seq_dict[seq_widget]["LED PWM (%)"][row])]*list_length)
+                            self.y_ref[index]["Current"].extend(
+                                [float(self.seq_dict[seq_widget]["LED current (%)"][row])]*list_length)
                             elapsed_time += duration
                             if duration == 0:
                                 break
                         else:
-                            self.showMessage("ERROR: Something went very wrong - a hold was not reached at the end of a sequence and this should be impossible.")
+                            self.showMessage(
+                                "ERROR: Something went very wrong - a hold was not reached at the end of a sequence and this should be impossible.")
 
         elif self.mode == "Analog":
-            #Disable second tab as there is only one analog state
+            # Disable second tab as there is only one analog state
             self.main_tab.setTabEnabled(0, True)
             self.main_tab.setTabEnabled(1, False)
 
-            #Initialize plots to 0
+            # Initialize plots to 0
             for index in range(2):
                 self.x_ref[index] = [0]
                 for key in self.y_ref[index]:
@@ -216,7 +225,7 @@ class syncPlotWindow(QtWidgets.QWidget):
                 if sync_model["Confocal"][trigger]["Mode"].whatsThis() in ["LED Off", "External Analog"]:
                     self.x_ref[index] = [0]  # Set duration to hold
                     for key in self.y_ref[index]:
-                        self.y_ref[index][key] = [0] # Set all intensities to 0, and channel is not changed (0)
+                        self.y_ref[index][key] = [0]  # Set all intensities to 0, and channel is not changed (0)
                 elif sync_model["Confocal"][trigger]["Mode"].whatsThis() == "Constant Value":
                     duration = self.gui.getValue(sync_model["Confocal"][trigger]["Duration"])
                     if duration == 0:
@@ -231,16 +240,19 @@ class syncPlotWindow(QtWidgets.QWidget):
                         if isinstance(sync_model["Confocal"][trigger][key2], list):
                             self.y_ref[index][key] = [widgetIndex(sync_model["Confocal"][trigger][key2])]
                             if duration > 0:
-                                self.y_ref[index][key].extend([widgetIndex(sync_model["Confocal"][trigger][key2]), 0]) #Extend to hold at off to intensity profile if intensity is pulsed for a fixed duration
+                                # Extend to hold at off to intensity profile if intensity is pulsed for a fixed duration
+                                self.y_ref[index][key].extend([widgetIndex(sync_model["Confocal"][trigger][key2]), 0])
                         else:
                             self.y_ref[index][key] = [self.gui.getValue(sync_model["Confocal"][trigger][key2])]
                             if duration > 0:
-                                self.y_ref[index][key].extend([self.gui.getValue(sync_model["Confocal"][trigger][key2]), 0]) #Extend to hold at off to intensity profile if intensity is pulsed for a fixed duration
+                                # Extend to hold at off to intensity profile if intensity is pulsed for a fixed duration
+                                self.y_ref[index][key].extend(
+                                    [self.gui.getValue(sync_model["Confocal"][trigger][key2]), 0])
                 else:
                     seq_widget = self.seq_list[index+2]
                     n_rows = len(self.seq_dict[seq_widget]["LED #"])
                     elapsed_time = 0
-                    if n_rows == 0: #If there isn't a sequence specified, default to holding the LED off
+                    if n_rows == 0:  # If there isn't a sequence specified, default to holding the LED off
                         self.x_ref[index] = [0]  # Set duration to hold
                         for key in self.y_ref[index]:
                             self.y_ref[index][key] = [0]  # Set all intensities to 0, and channel is not changed (0)
@@ -249,7 +261,7 @@ class syncPlotWindow(QtWidgets.QWidget):
                             self.y_ref[index][key] = []  # Clear all lists
                         self.x_ref[index] = []
 
-                        #If a hold isn't specified at the end of the sequence add a hold at off
+                        # If a hold isn't specified at the end of the sequence add a hold at off
                         if self.seq_dict[seq_widget]["Duration (s)"][n_rows-1] != 0:
                             for key in self.seq_dict[seq_widget]:
                                 self.seq_dict[seq_widget][key].append(0)
@@ -258,36 +270,40 @@ class syncPlotWindow(QtWidgets.QWidget):
                         for row in range(n_rows):
                             duration = float(self.seq_dict[seq_widget]["Duration (s)"][row])
                             self.x_ref[index].append(elapsed_time+SLEW_TIME)
-                            list_length = 1 #If hold is reached, only add one more time point
-                            if duration > 0: #If hold is not reached add two time points as sequence is a step function
+                            list_length = 1  # If hold is reached, only add one more time point
+                            if duration > 0:  # If hold is not reached add two time points as sequence is a step function
                                 self.x_ref[index].append(elapsed_time+duration)
                                 list_length = 2
-                            self.y_ref[index]["Channel"].extend([int(self.seq_dict[seq_widget]["LED #"][row])]*list_length)
-                            self.y_ref[index]["PWM"].extend([float(self.seq_dict[seq_widget]["LED PWM (%)"][row])]*list_length)
-                            self.y_ref[index]["Current"].extend([float(self.seq_dict[seq_widget]["LED current (%)"][row])]*list_length)
+                            self.y_ref[index]["Channel"].extend(
+                                [int(self.seq_dict[seq_widget]["LED #"][row])]*list_length)
+                            self.y_ref[index]["PWM"].extend(
+                                [float(self.seq_dict[seq_widget]["LED PWM (%)"][row])]*list_length)
+                            self.y_ref[index]["Current"].extend(
+                                [float(self.seq_dict[seq_widget]["LED current (%)"][row])]*list_length)
                             elapsed_time += duration
                             if duration == 0:
                                 break
                         else:
-                            self.showMessage("ERROR: Something went very wrong - a hold was not reached at the end of a sequence and this should be impossible.")
+                            self.showMessage(
+                                "ERROR: Something went very wrong - a hold was not reached at the end of a sequence and this should be impossible.")
 
         elif self.mode == "Serial":
-            #Disable second tab as there is only one analog state
+            # Disable second tab as there is only one analog state
             self.main_tab.setTabEnabled(0, True)
             self.main_tab.setTabEnabled(1, False)
 
-            #Initialize plots to 0
+            # Initialize plots to 0
             for index in range(2):
                 self.x_ref[index] = [0]
                 for key in self.y_ref[index]:
                     self.y_ref[index][key] = [0]
 
         elif self.mode == "Custom":
-            #Disable second tab as there is only one analog state
+            # Disable second tab as there is only one analog state
             self.main_tab.setTabEnabled(0, True)
             self.main_tab.setTabEnabled(1, False)
 
-            #Initialize plots to 0
+            # Initialize plots to 0
             for index in range(2):
                 self.x_ref[index] = [0]
                 for key in self.y_ref[index]:
@@ -296,14 +312,14 @@ class syncPlotWindow(QtWidgets.QWidget):
         else:
             print("Not implemented")
 
-        #Update hold labels:
+        # Update hold labels:
         self.resetHoldLabel(0)
         self.resetHoldLabel(1)
         self.resetHold()
         if debug:
             print("Hold status initialized: " + str(self.hold_status))
 
-        #Plot reference lines
+        # Plot reference lines
         for index in range(2):
             if self.main_tab.isTabEnabled(index):
                 for key, seq_plot in self.plots[index].items():
@@ -317,7 +333,7 @@ class syncPlotWindow(QtWidgets.QWidget):
                 self.y_values[index][key] = self.y_values[index][key][::2]
             self.x_values[index] = self.x_values[index][::2]
 
-            #Halve the plotting rate to match new bin widths
+            # Halve the plotting rate to match new bin widths
             self.plot_interval *= 2
             self.plot_timeline.setInterval(self.plot_interval)
             if debug:
@@ -340,10 +356,11 @@ class syncPlotWindow(QtWidgets.QWidget):
 
     def updateStatus(self, status):
         count = self.status_dict["Count"]
-        if (status["Mode"] == 0 and self.status_dict["Mode"] != 0) or status["State"] != self.status_dict["State"]: #If there was a change to sync active or sync state change: switch tab, reset plots, and reset animation
-            self.main_tab.setCurrentIndex(status["State"]) #Switch to tab for active state
+        # If there was a change to sync active or sync state change: switch tab, reset plots, and reset animation
+        if (status["Mode"] == 0 and self.status_dict["Mode"] != 0) or status["State"] != self.status_dict["State"]:
+            self.main_tab.setCurrentIndex(status["State"])  # Switch to tab for active state
             self.stopAnimation()
-            self.status_signal.disconnect()  #Stop status updates - the prevents extraneous updates being saved while plots are reset
+            self.status_signal.disconnect()  # Stop status updates - the prevents extraneous updates being saved while plots are reset
             self.resetHold()
             self.resetHoldLabel(status["State"])  # Clear the plot arrays for the active state
             self.clearPlot(status["State"])  # Clear the plot arrays for the active state
@@ -351,14 +368,14 @@ class syncPlotWindow(QtWidgets.QWidget):
             self.startAnimation()
             self.status_signal.connect(self.updateStatus)  # Update status when new status signal is received
 
-        elif status["Mode"] != 0 and self.status_dict["Mode"] == 0: #If there was a change to sync inactive, stop plotting
+        elif status["Mode"] != 0 and self.status_dict["Mode"] == 0:  # If there was a change to sync inactive, stop plotting
             self.stopAnimation()
             self.resetHold()
 
-        self.status_dict["Mode"] = status["Mode"] #Update mode
+        self.status_dict["Mode"] = status["Mode"]  # Update mode
 
-        if status["Mode"] == 0: #Update status if sync is active
-            #Update y-values
+        if status["Mode"] == 0:  # Update status if sync is active
+            # Update y-values
             for index, key in enumerate(status):
                 if key in ["Mode", "Control", "State"] or count == 0:
                     self.status_dict[key] = status[key]
@@ -372,10 +389,12 @@ class syncPlotWindow(QtWidgets.QWidget):
             else:
                 self.status_dict["Time"] += current_time
 
-            #Check for hold time if hold is expected
-            if self.hold_status[self.status_dict["State"]] is False: #Check if hold time reached if hold is expected (hold status is False)
+            # Check for hold time if hold is expected
+            # Check if hold time reached if hold is expected (hold status is False)
+            if self.hold_status[self.status_dict["State"]] is False:
                 if current_time >= self.x_ref[status["State"]][-1]:  # If hold time has been reached, start hold timer
-                    self.plot_timeline.setInterval(500) #Set interval to update hold label twice per second (double the highest granularity in hold label timer)
+                    # Set interval to update hold label twice per second (double the highest granularity in hold label timer)
+                    self.plot_timeline.setInterval(500)
                     self.hold_start_time = current_time
                     self.hold_status[self.status_dict["State"]] = True
 
@@ -385,6 +404,7 @@ class syncPlotWindow(QtWidgets.QWidget):
         for key in self.y_values[index]:
             self.y_values[index][key] = []
         self.x_values[index] = []
+
     def resetStatus(self):
         self.status_dict["Count"] = 0  # Add count element to dictionary
         self.status_dict["Time"] = 0  # Add time element to dictionary
@@ -397,59 +417,65 @@ class syncPlotWindow(QtWidgets.QWidget):
                 self.hold_status[index] = False
 
     def resetHoldLabel(self, index):
-        self.hold_label[index].setText("Hold at end: PWM = " + str(self.y_ref[index]["PWM"][-1]) + "%, Current = " + str(self.y_ref[index]["Current"][-1]) + "%, Channel = " + str(self.y_ref[index]["Channel"][-1]) + ".  Elapsed hold time: 00:00:00")
+        self.hold_label[index].setText("Hold at end: PWM = " + str(self.y_ref[index]["PWM"][-1]) + "%, Current = " + str(
+            self.y_ref[index]["Current"][-1]) + "%, Channel = " + str(self.y_ref[index]["Channel"][-1]) + ".  Elapsed hold time: 00:00:00")
 
     def updateSyncPlot(self):
         show_plot = self.isVisible()
         state = self.status_dict["State"]
         count = self.status_dict["Count"]
 
-        if count > 0: #Update values if at least one new update was received
-            #Convert values
+        if count > 0:  # Update values if at least one new update was received
+            # Convert values
             self.status_dict["Channel"] /= count
-            self.status_dict["Current"] = ((self.status_dict["Current"] / count) / self.gui.getAdcCurrentLimit(round(self.status_dict["Channel"]))) * 100
+            self.status_dict["Current"] = ((self.status_dict["Current"] / count) /
+                                           self.gui.getAdcCurrentLimit(round(self.status_dict["Channel"]))) * 100
             self.status_dict["PWM"] = ((self.status_dict["PWM"] / count) / 65535) * 100
             self.status_dict["Channel"] += 1
 
-            if self.hold_status[state] is not True: #Update plots if timer has not reached hold
-                self.x_values[state].append(self.status_dict["Time"] / count) #Add current time to x values
+            if self.hold_status[state] is not True:  # Update plots if timer has not reached hold
+                self.x_values[state].append(self.status_dict["Time"] / count)  # Add current time to x values
                 for key, status_plot in self.plots[state].items():
                     self.y_values[state][key].append(self.status_dict[key])
                     if show_plot:
                         if self.mode in ["Analog", "Serial", "Custom"]:
-                            status_plot.plot(self.x_values[state][1:], self.y_values[state][key][1:], pen=pg.mkPen('g', width=1), connect="finite", clear=True)
+                            status_plot.plot(self.x_values[state][1:], self.y_values[state][key][1:], pen=pg.mkPen(
+                                'g', width=1), connect="finite", clear=True)
                         else:
-                            status_plot.plot(self.x_ref[state], self.y_ref[state][key], pen=pg.mkPen('m', width=1), connect="finite", clear=True)
-                            status_plot.plot(self.x_values[state][1:], self.y_values[state][key][1:], pen=pg.mkPen('g', width=1), connect="finite", clear=False)
+                            status_plot.plot(self.x_ref[state], self.y_ref[state][key],
+                                             pen=pg.mkPen('m', width=1), connect="finite", clear=True)
+                            status_plot.plot(self.x_values[state][1:], self.y_values[state][key][1:], pen=pg.mkPen(
+                                'g', width=1), connect="finite", clear=False)
                 self.binPlots()  # Check if plots need to be down sampled
 
-            else: #If timer has reached hold, update hold label instead
-                round_to_n = lambda x, n: x if x == 0 else round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))  # Round to sig fig - https://stackoverflow.com/questions/3410976/how-to-round-a-number-to-significant-figures-in-python
+            else:  # If timer has reached hold, update hold label instead
+                # Round to sig fig - https://stackoverflow.com/questions/3410976/how-to-round-a-number-to-significant-figures-in-python
+                def round_to_n(x, n): return x if x == 0 else round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
                 hold_seconds = round((self.status_dict["Time"]/count)-self.hold_start_time)
                 for key, status_plot in self.plots[state].items():
                     self.y_values[state][key].append(self.status_dict[key]/count)
                 self.hold_label[state].setText("Hold at end: PWM = " + str(round_to_n(self.status_dict["PWM"], 3)) +
-                                           "%, Current = " + str(round_to_n(self.status_dict["Current"], 3)) +
-                                           "%, Channel = " + str(round(self.status_dict["Channel"])) +
-                                           ".  Elapsed hold time: " + str(datetime.timedelta(seconds = hold_seconds)))
+                                               "%, Current = " + str(round_to_n(self.status_dict["Current"], 3)) +
+                                               "%, Channel = " + str(round(self.status_dict["Channel"])) +
+                                               ".  Elapsed hold time: " + str(datetime.timedelta(seconds=hold_seconds)))
 
             self.status_dict["Count"] = 0  # Reset the averaging counter
 
     def closeEvent(self, event):
         self.stopAnimation()
 
-        #Disconnect class instance from MainWindow signals
+        # Disconnect class instance from MainWindow signals
         self.gui.sync_update_signal.disconnect(self.update_emit)
         self.gui.status_signal.disconnect(self.status_emit)
 
-        #Disconnect internal signals
+        # Disconnect internal signals
         self.sync_update_signal.disconnect()  # Update status when new status signal is received
         self.status_signal.disconnect()  # Connect mainWindow status signal to dialog status signal
 
-        #Explicity delete timeline
+        # Explicity delete timeline
         self.plot_timeline.deleteLater()
 
-        #Change window closed flag
+        # Change window closed flag
         self.window_closed = True
 
     def windowClosed(self):
@@ -460,7 +486,3 @@ class syncPlotWindow(QtWidgets.QWidget):
         self.gui.stopSplash()
         self.gui.message_box.setText(text)
         self.gui.message_box.exec()
-
-
-
-

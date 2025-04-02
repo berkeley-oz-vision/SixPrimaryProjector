@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
 from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QLineEdit, QPushButton, QFileDialog, QLabel
-import sys
 import os
+from typing import Union
 
 from datetime import datetime
 from PyQt5 import QtGui
@@ -229,14 +229,14 @@ class IntegerListDialog(QDialog):
             QMessageBox.warning(self, "Error", "Please enter only integers separated by commas.")
 
 
-def promptForFolderSelection(folder_selection_prompt, base_path, base_name) -> str | None:
+def promptForFolderSelection(folder_selection_prompt, base_path, base_name) -> Union[str, None]:
     dialog = FolderSelectionDialogue(folder_selection_prompt, base_path, base_name)
     if dialog.exec_() == QDialog.Accepted:
         return dialog.selected_folder
     return dialog.selected_folder
 
 
-def promptForLUTSaveFile() -> str | None:
+def promptForLUTSaveFile() -> Union[str, None]:
     dialog = CSVFilenameDialog("Enter Filename or Choose LUT CSV for Saving: ")
     if dialog.exec_() == QDialog.Accepted:
         # Get the filename after the dialog is closed

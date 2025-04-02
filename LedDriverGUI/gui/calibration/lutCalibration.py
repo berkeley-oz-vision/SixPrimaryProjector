@@ -9,11 +9,12 @@ from PyQt5.QtGui import QColor
 
 from screeninfo import get_monitors
 from simple_pid import PID
+from typing import Union
 
-from LedDriverGUI.gui.utils.newport import NewPortWrapper
-import LedDriverGUI.gui.guiSequence as seq
-from LedDriverGUI.gui.windows.calibrationSelection import promptForLUTSaveFile, promptForLUTStartingValues, promptForLEDList, FullscreenWindow, PlotMonitor, promptForFolderSelection
-from LedDriverGUI.gui.utils.sequenceFiles import createAllOnSequenceFile
+from ...devices.newport import NewPortWrapper
+from .. import guiSequence as seq
+from ..windows.calibrationSelection import promptForLUTSaveFile, promptForLUTStartingValues, promptForLEDList, FullscreenWindow, PlotMonitor, promptForFolderSelection
+from ..utils.sequenceFiles import createAllOnSequenceFile
 
 ROOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "measurements")
 
@@ -24,7 +25,7 @@ class LUTMeasurement(QThread):
     reset_plot_signal = pyqtSignal()
     send_seq_table = pyqtSignal(str)
 
-    def __init__(self, gui, lut_directory: str | None, gamma_directory: str | None = None, starting_pwm=0.8, starting_current=1.0, sleep_time=3, wavelength=660, threshold=0.001, debug=False):
+    def __init__(self, gui, lut_directory: Union[str, None], gamma_directory: Union[str, None] = None, starting_pwm=0.8, starting_current=1.0, sleep_time=3, wavelength=660, threshold=0.001, debug=False):
         super().__init__()
         self.gui = gui
         self.debug = debug
@@ -42,29 +43,25 @@ class LUTMeasurement(QThread):
         self.peak_wavelengths = [630, 550, 450, 590, 510, 410]
 
         # configure LUT Directory
-
         if lut_directory is None:
             raise ValueError("LUT Directory must be provided")
         else:
             self.lut_directory: str = str(lut_directory)
         os.makedirs(self.lut_directory, exist_ok=True)
-        max_percentage = 0.8
         self.lut_rgb_path = os.path.join(self.lut_directory, 'rgb.csv')
         if not os.path.exists(self.lut_rgb_path):
             createAllOnSequenceFile(self.lut_rgb_path, starting_pwm, starting_current, mode='RGB')
-
-            rgb_start_points = [[max_percentage for _ in range(8)] for _ in range(3)]
+            rgb_start_points = [[starting_pwm for _ in range(8)] for _ in range(3)]
         else:
             rgb_start_points = self.readOutSequenceFile(self.lut_rgb_path)
         self.lut_ocv_path = os.path.join(self.lut_directory, 'ocv.csv')
         if not os.path.exists(self.lut_ocv_path):
             createAllOnSequenceFile(self.lut_ocv_path, starting_pwm, starting_current, mode='OCV')
-            ocv_start_points = [[max_percentage for _ in range(8)] for _ in range(3)]
+            ocv_start_points = [[starting_pwm for _ in range(8)] for _ in range(3)]
         else:
             ocv_start_points = self.readOutSequenceFile(self.lut_ocv_path)
         self.start_points = rgb_start_points + ocv_start_points
         print(self.start_points)
-
 
         self.gamma_directory = gamma_directory
         # configure measurement
@@ -193,7 +190,7 @@ class LUTMeasurement(QThread):
 
                     itr = itr + 1
                     # threshold= self.threshold
-                    threshold = self.threshold / 2 if level < 16 else self.threshold
+                    threshold = self.threshold / 4 if level < 16 else self.threshold
                     if abs(power - pid.setpoint) < threshold and (power-pid.setpoint) > 0:  # always finetune to the positive value
                         # logging.info(f'Gamma calibration for led {led} level {level} complete - Control: {control} Power: {power}')
                         print("Checking if stable...")
@@ -209,7 +206,7 @@ class LUTMeasurement(QThread):
                             print("Control is not stable. Continuing to finetune.")
                             continue
 
-                    if abs(control - last_control) <= float(1/65535 /2) and itr > 25:  # less than 8 bit precision
+                    if abs(control - last_control) <= float(1/65535 / 2) and itr > 25:  # less than 8 bit precision
                         # logging.info(f'Gamma calibration for led {led} level {level} did not finish - Control: {control}, Power: {power}')
                         print("Control is not within bit precision. Breaking and Moving onto Next Bit Mask")
                         break
@@ -246,11 +243,11 @@ class LUTMeasurement(QThread):
                 with open(gamma_check_power_filename, 'a') as file:
                     file.write(f'{i},{power},\n')
                 print(f"Led: {led}, color: {color}, power: {power}")
-                time.sleep(0.5)
+                time.sleep(0.5)   
         return
 
     def runLUTCheck(self):
-        self.led_list = [0, 1, 2, 3, 5]
+        self.led_list = [0, 1, 2, 3]
         lut_checks = [[2 ** i - 1, 2**i] for i in range(1, 8)]
         lut_checks = [item for sublist in lut_checks for item in sublist]
 
@@ -280,7 +277,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLutCalibration(self):
-        led_list = [2, 3]  # RGBO
+        led_list = [1, 2]  # RGBO
         max_powers_80 = self.measureLevel(led_list, 128)
         path_name = os.path.join(self.lut_directory, 'max-powers.npy')
         np.save(path_name, max_powers_80)
@@ -327,7 +324,7 @@ def runLUTCalibration(gui):
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, folder_name, sleep_time=2, threshold=0.0001, debug=False)
+    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwm=0.75, sleep_time=2, threshold=0.0001, debug=False)
     calibpid = gui.calibpid
 
     gui.config = ConfigurationFile(gui)
@@ -345,7 +342,6 @@ def runLUTCalibration(gui):
     def cleanup(gui):
         """Cleanup after thread finishes."""
         print("Cleaning up worker thread.")
-        # TODO: Doesn't seem to get called?
         gui.calibration_window.close()
         gui.plotting_window.close()
         thread.quit()  # Stop the thread
@@ -360,7 +356,8 @@ def runLUTCalibration(gui):
 
 def runLUTCheck(gui):
     folder_name = promptForFolderSelection("Select LUT Folder", os.path.join(ROOT_DIR, 'sequence-tables'), 'LUT')
-    gamma_folder_name = promptForFolderSelection("Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma_subset')
+    gamma_folder_name = promptForFolderSelection(
+        "Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma_subset')
     gui.calibration_window = FullscreenWindow(getSecondScreenGeometry())
     calibration_window = gui.calibration_window
 
@@ -383,7 +380,6 @@ def runLUTCheck(gui):
     def cleanup(gui):
         """Cleanup after thread finishes."""
         print("Cleaning up worker thread.")
-        # TODO: Doesn't seem to get called?
         gui.calibration_window.close()
         gui.plotting_window.close()
         thread.quit()  # Stop the thread
