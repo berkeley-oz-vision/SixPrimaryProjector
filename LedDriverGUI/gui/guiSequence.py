@@ -16,7 +16,10 @@ n_sequence_files = 4  # Total number of sequence tables in Sync configuration
 # derived from - https://stackoverflow.com/questions/12608835/writing-a-qtablewidget-to-a-csv-or-xls
 def loadSequence(gui, widget, get_path=False):
     if get_path:
-        path = getSequencePath(gui, widget)
+        if type(get_path) == str:
+            path = get_path
+        else:
+            path = getSequencePath(gui, widget)
     else:
         path = None
     if path is None:
