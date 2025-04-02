@@ -15,6 +15,7 @@ Tweaked by Jessica Lee to work with Python 3.12.
 import numpy
 import time
 import serial
+import serial.tools.list_ports
 import matplotlib.pyplot as plt
 
 
