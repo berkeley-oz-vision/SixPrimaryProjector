@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from . import guiSequence as seq
 from . import guiConfigIO as fileIO
+from .calibration.lutCalibration import runLUTCalibration, runLUTCheck, runGammaCheck
 from PyQt5 import QtGui, QtCore
 
 
@@ -297,6 +298,10 @@ def initializeEvents(gui):
         gui.sync_upload_button.clicked.connect(lambda: gui.ser.uploadSyncConfiguration())
         gui.sync_save_button.clicked.connect(lambda: seq.findUnsavedSeqThenSave(gui, gui.sync_model))
         gui.sync_load_button.clicked.connect(lambda: fileIO.loadConfiguration(gui, gui.sync_model))
+
+        gui.lut_calibration_button.clicked.connect(lambda: runLUTCalibration(gui))
+        gui.measure_bitmasks_button.clicked.connect(lambda: runLUTCheck(gui))
+        gui.measure_gamma_button.clicked.connect(lambda: runGammaCheck(gui))
 
         sequenceEvents()
 

@@ -4716,6 +4716,43 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="calibration_tab">
+       <attribute name="title">
+        <string>Calibration</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_46">
+        <item row="0" column="0">
+            <widget class="QPushButton" name="lut_calibration_button">
+            <property name="toolTip">
+                <string>Run through all the bitmasks and calibrate with the last values as the starting points</string>
+            </property>
+            <property name="text">
+                <string>Run Finetune Calibration</string>
+            </property>
+            </widget>
+        </item>
+        <item row="1" column="0">
+            <widget class="QPushButton" name="measure_bitmasks_button">
+            <property name="toolTip">
+                <string>Run through all the bitmasks and make sure they're relatively close to the original measurements.</string>
+            </property>
+            <property name="text">
+                <string>QC - Measure All Bitmasks</string>
+            </property>
+            </widget>
+        </item>
+        <item row="2" column="0">
+            <widget class="QPushButton" name="measure_gamma_button">
+            <property name="toolTip">
+                <string>Measure the Gamma Curve.</string>
+            </property>
+            <property name="text">
+                <string>QC - Measure Gamma Curve</string>
+            </property>
+            </widget>
+        </item>
+       </layout>
+      </widget>
       <widget class="QWidget" name="about_tab">
        <attribute name="title">
         <string>About</string>

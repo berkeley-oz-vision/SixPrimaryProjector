@@ -9,11 +9,12 @@ from PyQt5.QtGui import QColor
 
 from screeninfo import get_monitors
 from simple_pid import PID
+from typing import Union
 
-from LedDriverGUI.gui.utils.newport import NewPortWrapper
-import LedDriverGUI.gui.guiSequence as seq
-from LedDriverGUI.gui.windows.calibrationSelection import promptForLUTSaveFile, promptForLUTStartingValues, promptForLEDList, FullscreenWindow, PlotMonitor, promptForFolderSelection
-from LedDriverGUI.gui.utils.sequenceFiles import createAllOnSequenceFile
+from ..utils.newport import NewPortWrapper
+from .. import guiSequence as seq
+from ..windows.calibrationSelection import promptForLUTSaveFile, promptForLUTStartingValues, promptForLEDList, FullscreenWindow, PlotMonitor, promptForFolderSelection
+from ..utils.sequenceFiles import createAllOnSequenceFile
 
 ROOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "measurements")
 
@@ -24,7 +25,7 @@ class LUTMeasurement(QThread):
     reset_plot_signal = pyqtSignal()
     send_seq_table = pyqtSignal(str)
 
-    def __init__(self, gui, lut_directory: str | None, gamma_directory: str | None = None, starting_pwm=0.8, starting_current=1.0, sleep_time=3, wavelength=660, threshold=0.001, debug=False):
+    def __init__(self, gui, lut_directory: Union[str, None], gamma_directory: Union[str, None] = None, starting_pwm=0.8, starting_current=1.0, sleep_time=3, wavelength=660, threshold=0.001, debug=False):
         super().__init__()
         self.gui = gui
         self.debug = debug
@@ -42,7 +43,6 @@ class LUTMeasurement(QThread):
         self.peak_wavelengths = [630, 550, 450, 590, 510, 410]
 
         # configure LUT Directory
-
         if lut_directory is None:
             raise ValueError("LUT Directory must be provided")
         else:
@@ -52,7 +52,6 @@ class LUTMeasurement(QThread):
         self.lut_rgb_path = os.path.join(self.lut_directory, 'rgb.csv')
         if not os.path.exists(self.lut_rgb_path):
             createAllOnSequenceFile(self.lut_rgb_path, starting_pwm, starting_current, mode='RGB')
-
             rgb_start_points = [[max_percentage for _ in range(8)] for _ in range(3)]
         else:
             rgb_start_points = self.readOutSequenceFile(self.lut_rgb_path)
@@ -344,7 +343,6 @@ def runLUTCalibration(gui):
     def cleanup(gui):
         """Cleanup after thread finishes."""
         print("Cleaning up worker thread.")
-        # TODO: Doesn't seem to get called?
         gui.calibration_window.close()
         gui.plotting_window.close()
         thread.quit()  # Stop the thread
@@ -383,7 +381,6 @@ def runLUTCheck(gui):
     def cleanup(gui):
         """Cleanup after thread finishes."""
         print("Cleaning up worker thread.")
-        # TODO: Doesn't seem to get called?
         gui.calibration_window.close()
         gui.plotting_window.close()
         thread.quit()  # Stop the thread

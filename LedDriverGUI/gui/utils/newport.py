@@ -10,8 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import concurrent.futures
 
+
 class CommandError(Exception):
     '''The function in the usbdll.dll was not successfully evaluated'''
+
 
 class Newport_1918c():
     def __init__(self, **kwargs):
@@ -20,13 +22,14 @@ class Newport_1918c():
             # print(self.LIBNAME)
             self.lib = windll.LoadLibrary(self.LIBNAME)
             self.product_id = kwargs.get('product_id', 0xCEC7)
-        except WindowsError as e:
+        except Exception as e:
             print(e.strerror)
             sys.exit(1)
             # raise CommandError('could not open detector library will all the functions in it: %s' % LIBNAME)
 
         self.open_device_with_product_id()
-        self.instrument = self.get_instrument_list()  # here instrument[0] is the device id, [1] is the model number and [2] is the serial number
+        # here instrument[0] is the device id, [1] is the model number and [2] is the serial number
+        self.instrument = self.get_instrument_list()
         [self.device_id, self.model_number, self.serial_number] = self.instrument
         self.clearBuffer()  # Clear DLL buffer or else text from previous program run will show up in next run
 
@@ -90,7 +93,6 @@ class Newport_1918c():
             print(e)
 
     def ask(self, query_string):
-
         """
         Write a query and read the response from the device
         :rtype : String
@@ -183,7 +185,6 @@ class Newport_1918c():
             self.write('PM:FILT 0')  # no filtering
 
     def read_buffer(self, wavelength=700, buff_size=1000, interval_ms=1):
-
         """
         Stores the power values at a certain wavelength.
         :param wavelength: float: Wavelength at which this operation should be done. float.
@@ -217,7 +218,6 @@ class Newport_1918c():
         return [actualwavelength, power]
 
     def sweep(self, swave, ewave, interval, buff_size=1000, interval_ms=1):
-
         """
         Sweeps over wavelength and records the power readings. At each wavelength many readings can be made
         :param swave: int: Start wavelength
@@ -240,7 +240,6 @@ class Newport_1918c():
         return [wave, power_mean, power_std]
 
     def sweep_instant_power(self, swave, ewave, interval):
-
         """
         Sweeps over wavelength and records the power readings. only one reading is made
         :param swave: int: Start wavelength
@@ -298,7 +297,8 @@ class Newport_1918c():
 class NewPortWrapper:
     def __init__(self):
         # Initialize a instrument object. You might have to change the LIBname or product_id.
-        nd = Newport_1918c(LIBNAME=r"C:\Program Files (x86)\Newport\Newport USB Driver\Bin\x64\usbdll.dll", product_id=0xCEC7)
+        nd = Newport_1918c(
+            LIBNAME=r"C:\Program Files (x86)\Newport\Newport USB Driver\Bin\x64\usbdll.dll", product_id=0xCEC7)
 
         if nd.status == 'Connected':
             # Print the IDN of the newport detector.
@@ -307,10 +307,10 @@ class NewPortWrapper:
 
             # TODO: Verify these settings
             settings = {
-                'FILTer':3,
-                'DIGITALFILTER':10000,
-                'ANALOGFILTER':4,
-                'Lambda':550
+                'FILTer': 3,
+                'DIGITALFILTER': 10000,
+                'ANALOGFILTER': 4,
+                'Lambda': 550
             }
             for k, v in settings.items():
                 nd.write(f"PM:{k} {str(v)}")
@@ -326,11 +326,11 @@ class NewPortWrapper:
         Timeout is set to 5 seconds, in case for some reason it disconnects.
         """
         def record_power():
-            power = float(self.instrum.ask("PM:Power?")) * 1000000.0 # measure in microwatts
+            power = float(self.instrum.ask("PM:Power?")) * 1000000.0  # measure in microwatts
             return power
-    
+
         num_tries = 5
-        while num_tries > 0: # this function is so faulty so we gotta break off a thread
+        while num_tries > 0:  # this function is so faulty so we gotta break off a thread
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(record_power)  # Task that takes 6 seconds
                 try:
@@ -340,7 +340,7 @@ class NewPortWrapper:
                 except concurrent.futures.TimeoutError:
                     num_tries -= 1
                     print(f"Measurement Failed. Trying again {num_tries} more times.")
-                    self.instrum = self.__init__() # untested
+                    self.instrum = self.__init__()  # untested
         return power
 
     def setInstrumWavelength(self, wavelength):
