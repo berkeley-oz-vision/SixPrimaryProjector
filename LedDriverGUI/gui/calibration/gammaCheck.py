@@ -1,7 +1,7 @@
 import tkinter as tk
 import os
 
-from ..utils.newport import NewPortWrapper
+from ...devices.newport import NewPortWrapper
 
 
 def _from_rgb(rgb):

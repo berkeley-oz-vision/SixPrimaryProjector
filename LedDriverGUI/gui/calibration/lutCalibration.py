@@ -11,7 +11,7 @@ from screeninfo import get_monitors
 from simple_pid import PID
 from typing import Union
 
-from ..utils.newport import NewPortWrapper
+from ...devices.newport import NewPortWrapper
 from .. import guiSequence as seq
 from ..windows.calibrationSelection import promptForLUTSaveFile, promptForLUTStartingValues, promptForLEDList, FullscreenWindow, PlotMonitor, promptForFolderSelection
 from ..utils.sequenceFiles import createAllOnSequenceFile
