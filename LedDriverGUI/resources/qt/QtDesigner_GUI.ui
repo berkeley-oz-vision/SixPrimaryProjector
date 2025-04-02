@@ -4751,6 +4751,16 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
             </property>
             </widget>
         </item>
+        <item row="3" column="0">
+            <widget class="QPushButton" name="measure_spectrums_button">
+            <property name="toolTip">
+                <string>Measure spectrums per led</string>
+            </property>
+            <property name="text">
+                <string>QC - Measure Spectrums</string>
+            </property>
+            </widget>
+        </item>
        </layout>
       </widget>
       <widget class="QWidget" name="about_tab">

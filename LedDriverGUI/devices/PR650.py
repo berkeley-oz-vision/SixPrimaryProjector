@@ -15,8 +15,9 @@ Tweaked by Jessica Lee to work with Python 3.12.
 import numpy
 import time
 import serial
-import serial.tools.list_ports
+from serial.tools import list_ports
 import matplotlib.pyplot as plt
+import platform
 
 
 class PR650:
@@ -130,14 +131,14 @@ class PR650:
             return numpy.asfarray(nm), numpy.asfarray(power)
 
 
-if __name__ == '__main__':
-    ports = serial.tools.list_ports.comports()
-
-    # for port, desc, hwid in ports:
-    #     print(f"Port: {port}, Description: {desc}, Hardware ID: {hwid}")
-
-    pr650 = PR650(ports[0][0])
-    res = pr650.measureSpectrum()
-    print(res)
-    plt.plot(res[0][0], res[0][1])
-    plt.show()
+def connect_to_PR650():
+    if platform.system() == 'Darwin':  # Check if the system is macOS
+        mac_port_name = '/dev/cu.usbserial-A104D0XS'
+        return PR650(mac_port_name)
+    else:
+        ports = list_ports.comports()
+        for port, desc, hwid in ports:
+            if hwid == 'USB VID:PID=0403:6001 SER=A104D0XSA':  # our pr650 hardware ID
+                return PR650(port)
+        print("PR650 not found, exiting")
+        return None
