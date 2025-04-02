@@ -74,6 +74,7 @@ class LUTMeasurement(QThread):
         self.start_points = rgb_start_points + ocv_start_points
         print(self.start_points)
 
+        # alternate file paths for different routines.
         self.gamma_directory = gamma_directory
         self.peak_spectra_directory = peak_spectra_directory
         # configure measurement
@@ -126,13 +127,6 @@ class LUTMeasurement(QThread):
             raise ValueError("Must provide either a filename or a led number")
         self.send_seq_table.emit(seq_file)
         time.sleep(self.sleep_time)
-        return
-        # if not self.debug:
-        #     print("before sending tables")
-        #     seq.loadSequence(self.gui, self.gui.sync_digital_low_sequence_table, seq_file)  # load the sequence
-        #     seq.loadSequence(self.gui, self.gui.sync_digital_high_sequence_table, seq_file)  # load the sequence
-        #     self.gui.ser.uploadSyncConfiguration()
-        #     print("after sending tables")
 
     def zeroBackground(self, led):
         self.setBackgroundColor([0, 0, 0])
