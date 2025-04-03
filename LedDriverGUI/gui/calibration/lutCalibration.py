@@ -50,7 +50,7 @@ class LUTMeasurement(QThread):
         self.peak_wavelengths = [630, 550, 450, 590, 510, 410]
 
         # Twelve-Projector Set-Up
-        self.twelve_leds = list(range(12))
+        self.twelve_leds = list(range(1, 13))
         self.twelve_led_peaks = [410, 455, 475, 500, 530, 540, 545, 570, 590, 615, 625, 660]
 
         # configure LUT Directory
@@ -80,7 +80,8 @@ class LUTMeasurement(QThread):
         # configure measurement
         self.measurement_wavelength = wavelength
         if peak_spectra_directory:
-            self.pr650 = connect_to_PR650()
+            # self.pr650 = connect_to_PR650()
+            pass
         else:
             self.instrum = NewPortWrapper()
 
@@ -127,7 +128,6 @@ class LUTMeasurement(QThread):
             seq_file = self.lut_rgb_path if led < 3 else self.lut_ocv_path
         else:
             raise ValueError("Must provide either a filename or a led number")
-        print(seq_file)
         self.send_seq_table.emit(seq_file)
         time.sleep(self.sleep_time)
 
@@ -315,7 +315,7 @@ class LUTMeasurement(QThread):
         else:
             os.makedirs(self.peak_spectra_directory, exist_ok=True)
 
-        self.tmp_seq_file = os.path.join(self.peak_spectra_directory, 'tmp_seq.csv')
+        self.tmp_seq_file = self.peak_spectra_directory + '/tmp_seq.csv'
 
         df_spectrums = pd.DataFrame()
         df_luminances = pd.DataFrame()
@@ -326,14 +326,15 @@ class LUTMeasurement(QThread):
             self.setTableToMode(filename=self.tmp_seq_file)
             # measure the first channel only
             self.setBackgroundColor([255, 0, 0])
-            spectrum, luminance = self.pr650.measureSpectrum()
-            spectrums+=[spectrum[1]]
-            if led_idx == 0:
-                df_spectrums['wavelength'] = spectrum[0]
-            df_spectrums[f'{led}'] = spectrum[1]
-            df_luminances[f'{led}'] = luminance
-
-            print(spectrum[1])
+            # spectrum, luminance = self.pr650.measureSpectrum()
+            # spectrums+=[spectrum[1]]
+            # if led_idx == 0:
+            #     df_spectrums['wavelength'] = spectrum[0]
+            # df_spectrums[f'{led}'] = spectrum[1]
+            # df_luminances[f'{led}'] = luminance
+            #
+            # print(spectrum[1])
+            time.sleep(10)
 
         df_spectrums.to_csv(os.path.join(self.peak_spectra_directory, 'spectrums.csv'))
         df_luminances.to_csv(os.path.join(self.peak_spectra_directory, 'luminances.csv'))
