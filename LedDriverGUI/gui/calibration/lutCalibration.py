@@ -80,8 +80,7 @@ class LUTMeasurement(QThread):
         # configure measurement
         self.measurement_wavelength = wavelength
         if peak_spectra_directory:
-            # self.pr650 = connect_to_PR650()
-            pass
+            self.pr650 = connect_to_PR650()
         else:
             self.instrum = NewPortWrapper()
 
@@ -326,15 +325,14 @@ class LUTMeasurement(QThread):
             self.setTableToMode(filename=self.tmp_seq_file)
             # measure the first channel only
             self.setBackgroundColor([255, 0, 0])
-            # spectrum, luminance = self.pr650.measureSpectrum()
-            # spectrums+=[spectrum[1]]
-            # if led_idx == 0:
-            #     df_spectrums['wavelength'] = spectrum[0]
-            # df_spectrums[f'{led}'] = spectrum[1]
-            # df_luminances[f'{led}'] = luminance
-            #
-            # print(spectrum[1])
-            time.sleep(10)
+            spectrum, luminance = self.pr650.measureSpectrum()
+            spectrums+=[spectrum[1]]
+            if led_idx == 0:
+                df_spectrums['wavelength'] = spectrum[0]
+            df_spectrums[f'{led}'] = spectrum[1]
+            df_luminances[f'{led}'] = luminance
+
+            print(spectrum[1])
 
         df_spectrums.to_csv(os.path.join(self.peak_spectra_directory, 'spectrums.csv'))
         df_luminances.to_csv(os.path.join(self.peak_spectra_directory, 'luminances.csv'))
