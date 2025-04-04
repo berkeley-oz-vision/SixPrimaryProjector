@@ -123,7 +123,7 @@ class LUTMeasurement(QThread):
     def setTableToMode(self, led=None, filename: Union[str, None] = None):
         if filename:
             seq_file = filename
-        elif led:
+        elif led is not None:
             seq_file = self.lut_rgb_path if led < 3 else self.lut_ocv_path
         else:
             raise ValueError("Must provide either a filename or a led number")
@@ -134,7 +134,8 @@ class LUTMeasurement(QThread):
         self.setBackgroundColor([0, 0, 0])
         if not self.debug:
             self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
-            self.setTableToMode(led)
+            self.setTableToMode(led=led)
+            time.sleep(self.sleep_time * 2)
             self.instrum.zeroPowerMeter()
             time.sleep(self.sleep_time)
 
@@ -235,19 +236,18 @@ class LUTMeasurement(QThread):
         os.makedirs(self.gamma_directory, exist_ok=True)
 
     def runGammaCheck(self):
-        self.led_list = [0, 1, 2, 3, 5]
+        self.led_list = list(range(6))
         self.checkGammaDirectory()
         for led_idx, led in enumerate(self.led_list):
             gamma_check_power_filename = os.path.join(self.gamma_directory, f'gamma_check_{led}.csv')
             with open(gamma_check_power_filename, 'w') as file:
                 file.write('Control,Power\n')
-            self.setTableToMode(led)
             self.zeroBackground(led)
 
             if not self.debug:
                 self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
             last_control = 0
-            for i in range(0, 256):
+            for i in range(0, 256, 5):
                 # set background color to the level we're measuring
                 color = [0, 0, 0]
                 color[led % 3] = i
@@ -329,15 +329,16 @@ class LUTMeasurement(QThread):
             spectrums += [spectrum[1]]
             if led_idx == 0:
                 df_spectrums['wavelength'] = spectrum[0]
-            df_spectrums[f'{led}'] = spectrum[1]
-            df_luminances[f'{led}'] = luminance
+            df_spectrums[f'LED {led}'] = spectrum[1]
+            df_luminances[f'LED {led}'] = [luminance]
 
             print(spectrum[1])
+            print(luminance)
 
-        df_spectrums.to_csv(os.path.join(self.peak_spectra_directory, 'spectrums.csv'))
-        df_luminances.to_csv(os.path.join(self.peak_spectra_directory, 'luminances.csv'))
+        df_spectrums.to_csv(os.path.join(self.peak_spectra_directory, 'spectrums.csv'), index=False)
+        df_luminances.to_csv(os.path.join(self.peak_spectra_directory, 'luminances.csv'), index=False)
 
-        plt.plot(spectrum[0], spectrums)
+        plt.plot(spectrum[0], np.array(spectrums).T)
 
         return
 
