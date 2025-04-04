@@ -363,9 +363,11 @@ class ConfigurationFile:
         self.gui = gui
 
     def uploadConfig(self, seq_file):
+        self.gui.syncDisableMain()
         seq.loadSequence(self.gui, self.gui.sync_digital_low_sequence_table, seq_file)  # load the sequence
         seq.loadSequence(self.gui, self.gui.sync_digital_high_sequence_table, seq_file)  # load the sequence
         self.gui.ser.uploadSyncConfiguration()
+        self.gui.syncDisableMain()
 
 
 def runLUTCalibration(gui):
