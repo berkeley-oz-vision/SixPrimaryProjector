@@ -270,7 +270,6 @@ class LUTMeasurement(QThread):
             gamma_check_power_filename = os.path.join(self.gamma_directory, f'gamma_subset_{led}.csv')
             with open(gamma_check_power_filename, 'w') as file:
                 file.write('Control,Power\n')
-            self.setTableToMode(led)
             self.zeroBackground(led)
 
             if not self.debug:
