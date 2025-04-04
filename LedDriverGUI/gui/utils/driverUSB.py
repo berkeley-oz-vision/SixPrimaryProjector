@@ -340,7 +340,8 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
             reply = reply.decode()
             if reply == "Sync and sequence files were successfully uploaded.":
                 self.gui.sync_update_signal.emit(None)  # Flag that the active sync state has changed
-            self.showMessage(reply)
+            else:
+                self.showMessage(reply)
         else:
             if self.portConnected():
                 self.sendWithoutReply(None, True, 0)  # Send empty heartbeat packet
