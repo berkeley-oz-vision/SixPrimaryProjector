@@ -1,0 +1,10 @@
+screeninfo
+simple_pid
+qdarkstyle
+pyqt5
+matplotlib
+pandas
+pyserial
+cobs
+pyautogui
+pyqtgraph

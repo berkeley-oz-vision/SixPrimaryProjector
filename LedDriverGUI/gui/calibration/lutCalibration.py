@@ -326,7 +326,7 @@ class LUTMeasurement(QThread):
             # measure the first channel only
             self.setBackgroundColor([255, 0, 0])
             spectrum, luminance = self.pr650.measureSpectrum()
-            spectrums+=[spectrum[1]]
+            spectrums += [spectrum[1]]
             if led_idx == 0:
                 df_spectrums['wavelength'] = spectrum[0]
             df_spectrums[f'{led}'] = spectrum[1]

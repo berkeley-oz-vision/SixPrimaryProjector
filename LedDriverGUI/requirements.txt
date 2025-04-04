@@ -1,3 +1,0 @@
-screeninfo
-tkinter
-simple_pid

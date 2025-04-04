@@ -72,6 +72,7 @@ class FullscreenWindow(QWidget):
         palette.setColor(QtGui.QPalette.Window, color)
         self.setPalette(palette)
         self.setAutoFillBackground(True)
+        print("Background color changed to:", color.name())
 
 
 class PlotMonitor(QMainWindow):
