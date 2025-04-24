@@ -46,12 +46,12 @@ class LUTMeasurement(QThread):
 
         # Six Projector Set-Up
         self.led_names = ['R', 'G', 'B', 'O', 'C', 'V']
-        self.leds = [11, 5, 2, 9, 4, 1]
-        self.peak_wavelengths = [630, 550, 450, 590, 510, 410]
+        self.leds = [10, 4, 1, 8, 3, 0]
+        self.peak_wavelengths = [640, 520, 452, 592, 492, 412]
 
         # Twelve-Projector Set-Up
         self.twelve_leds = list(range(1, 13))
-        self.twelve_led_peaks = [410, 455, 475, 500, 530, 540, 545, 570, 590, 615, 625, 660]
+        self.twelve_led_peaks = [412, 452, 468, 492, 520, 556, 552, 556, 592, 624, 640, 668]
 
         # configure LUT Directory
         if lut_directory is None:
@@ -290,7 +290,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLutCalibration(self):
-        led_list = [1, 2]  # RGBO
+        led_list = [0, 1, 2, 3]  # RGBO
         max_powers_80 = self.measureLevel(led_list, 128)
         path_name = os.path.join(self.lut_directory, 'max-powers.npy')
         np.save(path_name, max_powers_80)
