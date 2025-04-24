@@ -376,7 +376,7 @@ def runLUTCalibration(gui):
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwm=0.75, sleep_time=2, threshold=0.0001, debug=False)
+    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwm=0.8, sleep_time=2, threshold=0.0001, debug=False)
     calibpid = gui.calibpid
 
     gui.config = ConfigurationFile(gui)
