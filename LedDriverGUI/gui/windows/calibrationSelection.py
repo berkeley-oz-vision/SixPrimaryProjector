@@ -92,8 +92,10 @@ class PlotMonitor(QMainWindow):
         self.layout.addWidget(self.plot_widget_1)
         self.layout.addWidget(self.plot_widget_2)
 
-    def update_both_plots(self, x1, y1, x2, y2):
+    def update_both_plots(self, x1, y1, x2, y2, target):
         """Update both plots with new data."""
+        self.plot_widget_1.ax.set_title(f"Target: {target}")
+        self.plot_widget_2.ax.set_title(f"Target: {target}")
         self.plot_widget_1.update_plot(x1, y1)
         self.plot_widget_2.update_plot(x2, y2)
 

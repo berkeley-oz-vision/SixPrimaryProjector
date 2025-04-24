@@ -23,7 +23,7 @@ ROOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.
 
 class LUTMeasurement(QThread):
     display_color = pyqtSignal(QColor)
-    data_generated = pyqtSignal(float, float, float, float)
+    data_generated = pyqtSignal(float, float, float, float, float)
     reset_plot_signal = pyqtSignal()
     send_seq_table = pyqtSignal(str)
 
@@ -154,8 +154,8 @@ class LUTMeasurement(QThread):
 
         return powers
 
-    def plotPidData(self, elapsed_time, power, control):
-        self.data_generated.emit(elapsed_time, power, control, power)
+    def plotPidData(self, elapsed_time, power, control, target):
+        self.data_generated.emit(elapsed_time, power, control, power, target)
 
     def runCalibration(self):
         for led_idx, led in enumerate(self.led_list):
