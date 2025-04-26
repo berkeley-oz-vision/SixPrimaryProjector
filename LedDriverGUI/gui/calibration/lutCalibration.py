@@ -201,7 +201,7 @@ class LUTMeasurement(QThread):
 
                     # write the data out to a file
                     elapsed_time = time.time() - start_time
-                    self.plotPidData(elapsed_time, power, control)
+                    self.plotPidData(elapsed_time, power, control, set_point)
 
                     itr = itr + 1
                     # threshold= self.threshold
@@ -261,7 +261,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLUTCheck(self):
-        self.led_list = [0, 1, 2, 3]
+        self.led_list = [3]
         lut_checks = [[2 ** i - 1, 2**i] for i in range(1, 8)]
         lut_checks = [item for sublist in lut_checks for item in sublist]
 
@@ -290,7 +290,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLutCalibration(self):
-        led_list = [0, 1, 2, 3]  # RGBO
+        led_list = [3]  # RGBO
         max_powers_80 = self.measureLevel(led_list, 128)
         path_name = os.path.join(self.lut_directory, 'max-powers.npy')
         np.save(path_name, max_powers_80)
@@ -376,7 +376,7 @@ def runLUTCalibration(gui):
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwm=0.8, sleep_time=2, threshold=0.0001, debug=False)
+    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwm=0.8, sleep_time=2, threshold=0.00005, debug=False)
     calibpid = gui.calibpid
 
     gui.config = ConfigurationFile(gui)
