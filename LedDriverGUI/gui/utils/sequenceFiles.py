@@ -1,9 +1,19 @@
 import os
 import pandas as pd
+from typing import List
 
 
-RGB_MAPPING = [11, 5, 2]
-OCV_MAPPING = [9, 4, 1]
+# projector mapping
+RGO_MAPPING = [11, 5, 9]
+BGO_MAPPING = [2, 5, 9]
+
+# LED to RGBO mapping
+LED_TO_RGBO = {
+    11: 0,  # R
+    5: 1,  # G
+    2: 2,  # B
+    9: 3,  # O
+}
 
 
 def createSequenceFile(filename, led, control, level, current=1, mode='RGB'):
@@ -20,7 +30,7 @@ def createSequenceFile(filename, led, control, level, current=1, mode='RGB'):
     Example:
         createSequenceFile("led_sequence.csv", led=1, control=0.5, level=3)
     """
-    mapping = RGB_MAPPING if mode == 'RGB' else OCV_MAPPING
+    mapping = RGO_MAPPING if mode == 'RGO' else BGO_MAPPING
     with open(filename, 'w') as file:
         file.write("LED #,LED PWM (%),LED current (%),Duration (s)\n")
 
@@ -32,25 +42,48 @@ def createSequenceFile(filename, led, control, level, current=1, mode='RGB'):
                     file.write(f"{mapping[i]}, 0, 0, 1\n")  # set other rows to 0
 
 
-def createAllOnSequenceFile(filename, pwm, current, mode='RGB'):
+def createRGOBGOFiles(filenames: List[str], pwms: List[float], currents: List[float]):
     """Creates a CSV sequence file for LED control where all the bitmasks are set to PWM.
 
     Parameters:
         filename (str): The name of the output file.
-        pwm (float): PWM control value (0.0 to 1.0).
-        current (float, optional): LED current percentage (default is 1.0).
-        mode (str, optional): Mode of operation ('RGB' or 'OCV', default is 'RGB').
-
+        pwms (List[float]): List of starting PWM control values per LED (RGBO) (0.0 to 1.0).
+        currents (List[float], optional): List of current percentages per LED (RGBO) (default is 1.0).
     Example:
         createSequenceFile("led_sequence.csv", led=1, control=0.5, level=3)
     """
-    mapping = RGB_MAPPING if mode == 'RGB' else OCV_MAPPING
+    mappings = [RGO_MAPPING, BGO_MAPPING]
+    for k in range(2):
+        with open(filenames[k], 'w') as file:
+            file.write("LED #,LED PWM (%),LED current (%),Duration (s)\n")
+            for j in range(8):
+                for i in range(3):
+                    led_idx = LED_TO_RGBO[mappings[k][i]]
+                    file.write(f"{mappings[k][i]}, {pwms[led_idx] * 100}, {currents[led_idx] * 100}, 1.0\n")
 
-    with open(filename, 'w') as file:
-        file.write("LED #,LED PWM (%),LED current (%),Duration (s)\n")
-        for j in range(8):
-            for i in range(3):
-                file.write(f"{mapping[i]}, {pwm * 100}, {current * 100}, 1\n")
+
+def readOutStartingPoints(filenames: List[str]) -> List[List[float]]:
+    """Given a list of filenames for RGO/BGO, read out the starting points for each LED.
+
+    Args:
+        filenames (List[str]): List of filenames for RGO/BGO.
+
+    Returns:
+        List[List[float]]: List of lists containing the starting points for each LED.
+    """
+    pwms = []
+    for i in range(len(filenames)):
+        df = pd.read_csv(filenames[i])
+        df['LED PWM (%)'] = pd.to_numeric(df['LED PWM (%)'])
+        for led in range(3):
+            pwm_for_led = []
+            for level in range(8):
+                row_number = 3 * level + (led % 3)
+                pwm_for_led += [df.loc[row_number, 'LED PWM (%)']/100]
+            pwms += [pwm_for_led]
+
+    # RGOB -> RGBO
+    return [pwms[0], pwms[1], pwms[3], pwms[2]]  # R, G, B, O
 
 
 def createAllOnSingleLED(filename: str, pwm: float, current: float, led_number: int):
