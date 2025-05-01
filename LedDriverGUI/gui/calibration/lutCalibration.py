@@ -72,10 +72,10 @@ class LUTMeasurement(QThread):
         self.gamma_directory = gamma_directory
         # configure measurement
         self.measurement_wavelength = wavelength
-        self.instrum = NewPortWrapper()
-
-        if self.peak_spectra_directory is not None:
+        if peak_spectra_directory:
             self.pr650 = connect_to_PR650()
+        else:
+            self.instrum = NewPortWrapper()
 
     def setBackgroundColor(self, color):
         self.display_color.emit(QColor(color[0], color[1], color[2]))
@@ -393,13 +393,14 @@ def runLUTCalibration(gui):
 
 
 def runSpectralMeasurement(gui):
+    lut_folder_name = promptForFolderSelection("Select LUT Folder", os.path.join(ROOT_DIR, 'sequence-tables'), 'LUT')
     folder_name = promptForFolderSelection(
         "Select Spectral Measurements Folder", os.path.join(ROOT_DIR, 'spectras'), 'spectras')
     gui.calibration_window = FullscreenWindow(getSecondScreenGeometry())
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, None, peak_spectra_directory=folder_name, sleep_time=2)
+    gui.calibpid = LUTMeasurement(gui, lut_folder_name, peak_spectra_directory=folder_name, sleep_time=2)
     calibpid = gui.calibpid
 
     # needed to send the sequence table to the device on the main thread
