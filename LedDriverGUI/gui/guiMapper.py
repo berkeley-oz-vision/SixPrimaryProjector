@@ -2,7 +2,7 @@ from collections import OrderedDict
 import LedDriverGUI.gui.guiSequence as seq
 import LedDriverGUI.gui.guiConfigIO as fileIO
 import LedDriverGUI.gui.utils.calibrationPlot as plot
-from LedDriverGUI.gui.calibration.lutCalibration import runLUTCalibration, runGammaCheck, runLUTCheck
+from LedDriverGUI.gui.calibration.lutCalibration import runLUTCalibration, runGammaCheck, runLUTCheck, runSpectralMeasurement
 from PyQt5 import QtGui, QtCore
 
 def initializeConfigModel(gui):
@@ -332,6 +332,7 @@ def initializeEvents(gui):
         gui.LUT_calibration_button.clicked.connect(lambda: runLUTCalibration(gui))
         gui.gamma_check_button.clicked.connect(lambda: runGammaCheck(gui))
         gui.LUT_check_button.clicked.connect(lambda: runLUTCheck(gui))
+        gui.spectra_check_button.clicked.connect(lambda: runSpectralMeasurement(gui))
 
         sequenceEvents()
         outputChannelEvents()
