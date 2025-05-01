@@ -12,8 +12,9 @@ from simple_pid import PID
 
 from LedDriverGUI.gui.utils.newport import NewPortWrapper
 import LedDriverGUI.gui.guiSequence as seq
+from LedDriverGUI.devices.PR650 import connect_to_PR650
 from LedDriverGUI.gui.windows.calibrationSelection import promptForLUTSaveFile, promptForLUTStartingValues, promptForLEDList, FullscreenWindow, PlotMonitor, promptForFolderSelection
-from LedDriverGUI.gui.utils.sequenceFiles import createAllOnSequenceFile
+from LedDriverGUI.gui.utils.sequenceFiles import createAllOnSequenceFile, createAllOnSingleLED
 
 ROOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "measurements")
 
@@ -24,10 +25,13 @@ class LUTMeasurement(QThread):
     reset_plot_signal = pyqtSignal()
     send_seq_table = pyqtSignal(str)
 
-    def __init__(self, gui, lut_directory: str | None, gamma_directory: str | None = None, starting_pwm=0.8, starting_current=1.0, sleep_time=3, wavelength=660, threshold=0.001, debug=False):
+    def __init__(self, gui, lut_directory: str | None, gamma_directory: str | None = None,
+                 peak_spectra_directory: str | None = None,
+                 starting_pwm=0.8, starting_current=1.0, sleep_time=3, wavelength=660, threshold=0.001, debug=False):
         super().__init__()
         self.gui = gui
         self.debug = debug
+        self.peak_spectra_directory = peak_spectra_directory
 
         levels = [2**i for i in range(8)]
         levels.reverse()
@@ -65,11 +69,13 @@ class LUTMeasurement(QThread):
         self.start_points = rgb_start_points + ocv_start_points
         print(self.start_points)
 
-
         self.gamma_directory = gamma_directory
         # configure measurement
         self.measurement_wavelength = wavelength
         self.instrum = NewPortWrapper()
+
+        if self.peak_spectra_directory is not None:
+            self.pr650 = connect_to_PR650()
 
     def setBackgroundColor(self, color):
         self.display_color.emit(QColor(color[0], color[1], color[2]))
@@ -107,17 +113,45 @@ class LUTMeasurement(QThread):
         self.editSequenceFile(seq_file, led, level, pwm, current)
         self.setTableToMode(led)
 
-    def setTableToMode(self, led):
-        seq_file = self.lut_rgb_path if led < 3 else self.lut_ocv_path
+    def setTableToMode(self, led=None, filename: str | None = None):
+        if filename:
+            seq_file = filename
+        elif led:
+            seq_file = self.lut_rgb_path if led < 3 else self.lut_ocv_path
+        else:
+            raise ValueError("Must provide either a filename or a led number")
         self.send_seq_table.emit(seq_file)
         time.sleep(self.sleep_time)
         return
-        # if not self.debug:
-        #     print("before sending tables")
-        #     seq.loadSequence(self.gui, self.gui.sync_digital_low_sequence_table, seq_file)  # load the sequence
-        #     seq.loadSequence(self.gui, self.gui.sync_digital_high_sequence_table, seq_file)  # load the sequence
-        #     self.gui.ser.uploadSyncConfiguration()
-        #     print("after sending tables")
+
+    def runSpectralMeasurement(self, led_list=None):
+        if led_list is None:
+            led_list = [2, 4, 5, 7]  # B, G, O, R
+
+        if self.peak_spectra_directory is None:
+            raise ValueError("Peak Spectra Directory must be defined")
+        else:
+            os.makedirs(self.peak_spectra_directory, exist_ok=True)
+
+        self.tmp_seq_file = os.path.join(self.peak_spectra_directory, 'tmp_seq.csv')
+
+        df_spectrums = pd.DataFrame()
+        df_luminances = pd.DataFrame()
+
+        for led_idx, led in enumerate(led_list):
+            createAllOnSingleLED(self.tmp_seq_file, 1.0, 1.0, led)  # full power
+            self.setTableToMode(filename=self.tmp_seq_file)
+            # measure the first channel only
+            self.setBackgroundColor([255, 0, 0])
+            spectrum, luminance = self.pr650.measureSpectrum()
+            if led_idx == 0:
+                df_spectrums['wavelength'] = spectrum[0]
+            df_spectrums[f'{led}'] = spectrum[1]
+            df_luminances[f'{led}'] = luminance
+
+        df_spectrums.to_csv(os.path.join(self.peak_spectra_directory, 'spectrums.csv'))
+        df_luminances.to_csv(os.path.join(self.peak_spectra_directory, 'luminances.csv'))
+        return
 
     def zeroBackground(self, led):
         self.setBackgroundColor([0, 0, 0])
@@ -209,7 +243,7 @@ class LUTMeasurement(QThread):
                             print("Control is not stable. Continuing to finetune.")
                             continue
 
-                    if abs(control - last_control) <= float(1/65535 /2) and itr > 25:  # less than 8 bit precision
+                    if abs(control - last_control) <= float(1/65535 / 2) and itr > 25:  # less than 8 bit precision
                         # logging.info(f'Gamma calibration for led {led} level {level} did not finish - Control: {control}, Power: {power}')
                         print("Control is not within bit precision. Breaking and Moving onto Next Bit Mask")
                         break
@@ -358,9 +392,49 @@ def runLUTCalibration(gui):
     thread.start()
 
 
+def runSpectralMeasurement(gui):
+    folder_name = promptForFolderSelection(
+        "Select Spectral Measurements Folder", os.path.join(ROOT_DIR, 'spectras'), 'spectras')
+    gui.calibration_window = FullscreenWindow(getSecondScreenGeometry())
+    calibration_window = gui.calibration_window
+
+    # calibpid is the worker
+    gui.calibpid = LUTMeasurement(gui, None, peak_spectra_directory=folder_name, sleep_time=2)
+    calibpid = gui.calibpid
+
+    # needed to send the sequence table to the device on the main thread
+    gui.config = ConfigurationFile(gui)
+
+    gui.plotting_window = PlotMonitor()
+    # gui.plotting_window.show()
+
+    thread = QThread()
+    calibpid.send_seq_table.connect(gui.config.uploadConfig)
+    calibpid.display_color.connect(calibration_window.change_background_color)
+    calibpid.data_generated.connect(gui.plotting_window.update_both_plots)
+    calibpid.reset_plot_signal.connect(gui.plotting_window.reset_plots)
+    calibpid.moveToThread(thread)
+
+    def cleanup(gui):
+        """Cleanup after thread finishes."""
+        print("Cleaning up worker thread.")
+        # TODO: Doesn't seem to get called?
+        gui.calibration_window.close()
+        gui.plotting_window.close()
+        thread.quit()  # Stop the thread
+        thread.wait()  # Wait for the thread to finish
+        thread.deleteLater()  # Safely delete the thread
+
+    # Connect thread's start signal to the worker's task directly
+    thread.started.connect(calibpid.runSpectralMeasurement)
+    thread.finished.connect(lambda: cleanup(gui))
+    thread.start()
+
+
 def runLUTCheck(gui):
     folder_name = promptForFolderSelection("Select LUT Folder", os.path.join(ROOT_DIR, 'sequence-tables'), 'LUT')
-    gamma_folder_name = promptForFolderSelection("Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma_subset')
+    gamma_folder_name = promptForFolderSelection(
+        "Select Gamma Folder", os.path.join(ROOT_DIR, 'gammas'), 'gamma_subset')
     gui.calibration_window = FullscreenWindow(getSecondScreenGeometry())
     calibration_window = gui.calibration_window
 
