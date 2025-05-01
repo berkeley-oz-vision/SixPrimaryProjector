@@ -171,4 +171,4 @@ def createAllOnSingleLED(filename: str, pwm: float, current: float, led_number: 
         file.write("LED #,LED PWM (%),LED current (%),Duration (s)\n")
         for j in range(8):
             for i in range(3):
-                file.write(f"{led_number}, {pwm * 100}, {current * 100}, 1\n")
+                file.write(f"1, {pwm * 100}, {current * 100}, {led_number}\n")
