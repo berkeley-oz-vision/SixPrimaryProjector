@@ -16,7 +16,7 @@ from ...devices.newport import NewPortWrapper
 from ...devices.PR650 import connect_to_PR650
 from .. import guiSequence as seq
 from ..windows.calibrationSelection import promptForLUTSaveFile, promptForLUTStartingValues, promptForLEDList, FullscreenWindow, PlotMonitor, promptForFolderSelection
-from ..utils.sequenceFiles import createRGOBGOFiles, createAllOnSingleLED
+from ..utils.sequenceFiles import createRGOBGOFiles, createAllOnSingleLED, readOutStartingPoints
 
 ROOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "measurements")
 
@@ -25,7 +25,7 @@ class LUTMeasurement(QThread):
     display_color = pyqtSignal(QColor)
     data_generated = pyqtSignal(float, float, float, float, float)
     reset_plot_signal = pyqtSignal()
-    send_seq_table = pyqtSignal(str)
+    send_seq_table = pyqtSignal(str, str)
 
     def __init__(self, gui, lut_directory: Union[str, None],
                  gamma_directory: Union[str, None] = None,
@@ -124,10 +124,10 @@ class LUTMeasurement(QThread):
 
         if led in [1, 2]:  # G or O
             self.send_seq_table.emit(self.lut_rgo_path, self.lut_bgo_path)
-        elif led == 0:  # Red
-            self.send_seq_table.emit(self.lut_rgo_path, self.lut_rgo_path)
-        elif led == 3:  # Blue
+        elif led == 0:  # Blue
             self.send_seq_table.emit(self.lut_bgo_path, self.lut_bgo_path)
+        elif led == 3:  # Red
+            self.send_seq_table.emit(self.lut_rgo_path, self.lut_rgo_path)
         else:
             raise ValueError("LED not in range 0-3 -- This setup only calibrates RGO/BGO setup")
 
@@ -146,6 +146,7 @@ class LUTMeasurement(QThread):
         powers = []
 
         for led in leds:
+            self.setTableToMode(led)
             self.zeroBackground(led)
 
             color = [0, 0, 0]
@@ -180,7 +181,7 @@ class LUTMeasurement(QThread):
                 # setup PID for this mask
                 set_point = self.set_points[led_idx][level_idx]
                 starting_control = self.start_control_vals[led_idx][level_idx]
-                pid = PID(0.000139, 0.2 * 2**(level_idx + 7), 0.000000052, setpoint=set_point,
+                pid = PID(0.000139, 0.2 * 2**(level_idx + 6), 0.000000052, setpoint=set_point,
                           sample_time=None, starting_output=starting_control)
                 pid.output_limits = (0, 1)
 
@@ -193,6 +194,7 @@ class LUTMeasurement(QThread):
                 time.sleep(0.1)
 
                 itr = 0
+                accum_powers =[]
                 while True:
                     control = pid(power, dt=0.01)
                     # send the sequence to the device & measure
@@ -220,9 +222,19 @@ class LUTMeasurement(QThread):
                         if abs(np.mean(powers) - pid.setpoint) < threshold and (np.mean(powers)-pid.setpoint) > 0:
                             print("Control is stable. Breaking and Moving onto next bitmask")
                             break
-                        else:
+                        elif np.std(powers) > threshold:
                             print("Control is not stable. Continuing to finetune.")
                             continue
+
+                    if itr % 10 == 0 and itr > 10:
+                        std_dev = np.std(accum_powers)
+                        if std_dev > threshold and np.abs(np.mean(powers) - pid.setpoint) < self.threshold/2:
+                            print("Control cannot finetune further. Breaking")
+                            break
+                        else:
+                            accum_powers = []
+                    else:
+                        accum_powers += [power]
 
                     if abs(control - last_control) <= float(1/65535 / 2) and itr > 25:  # less than 8 bit precision
                         # logging.info(f'Gamma calibration for led {led} level {level} did not finish - Control: {control}, Power: {power}')
@@ -297,13 +309,14 @@ class LUTMeasurement(QThread):
         max_powers_80 = self.measureLevel(led_list, 128)
         path_name = os.path.join(self.lut_directory, 'max-powers.npy')
         np.save(path_name, max_powers_80)
+        print(max_powers_80)
         # max_powers_80 = np.load('max-powers.npy')
 
         num_bitmasks = len(self.levels)
         set_points = [[power/self.levels[num_bitmasks - i - 1] for i in range(num_bitmasks)] for power in max_powers_80]
 
         # start_points = [[max_percentage for _ in range(num_bitmasks)] for _ in range(len(led_list))]
-        actual_start_points = [self.start_points[i] for i in led_list]
+        actual_start_points = [self.start_control_points[i] for i in led_list]
         self.setCalibrationParams(led_list, set_points, actual_start_points)
         self.runCalibration()
 
@@ -363,10 +376,10 @@ class ConfigurationFile:
     def __init__(self, gui):
         self.gui = gui
 
-    def uploadConfig(self, seq_file):
+    def uploadConfig(self, seq_file1, seq_file2):
         self.gui.syncDisableMain()
-        seq.loadSequence(self.gui, self.gui.sync_digital_low_sequence_table, seq_file)  # load the sequence
-        seq.loadSequence(self.gui, self.gui.sync_digital_high_sequence_table, seq_file)  # load the sequence
+        seq.loadSequence(self.gui, self.gui.sync_digital_low_sequence_table, seq_file1)  # load the sequence
+        seq.loadSequence(self.gui, self.gui.sync_digital_high_sequence_table, seq_file2)  # load the sequence
         self.gui.ser.uploadSyncConfiguration()
         self.gui.syncDisableMain()
 
@@ -377,7 +390,8 @@ def runLUTCalibration(gui):
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwm=0.8, sleep_time=2, threshold=0.0001, debug=False)
+    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwms=[0.8, 0.8, 0.8, 0.8], starting_currents=[1.0, 1.0, 1.0, 1.0],
+                                  sleep_time=2, threshold=0.0001, debug=False)
     calibpid = gui.calibpid
 
     gui.config = ConfigurationFile(gui)
