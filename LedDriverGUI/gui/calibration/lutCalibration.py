@@ -16,7 +16,7 @@ from ...devices.newport import NewPortWrapper
 from ...devices.PR650 import connect_to_PR650
 from .. import guiSequence as seq
 from ..windows.calibrationSelection import promptForLUTSaveFile, promptForLUTStartingValues, promptForLEDList, FullscreenWindow, PlotMonitor, promptForFolderSelection
-from ..utils.sequenceFiles import createAllOnSequenceFile, createAllOnSingleLED
+from ..utils.sequenceFiles import createRGOBGOFiles, createAllOnSingleLED
 
 ROOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "measurements")
 
@@ -30,7 +30,7 @@ class LUTMeasurement(QThread):
     def __init__(self, gui, lut_directory: Union[str, None],
                  gamma_directory: Union[str, None] = None,
                  peak_spectra_directory: Union[str, None] = None,
-                 starting_pwm=0.8, starting_current=1.0,
+                 starting_pwms=[0.8, 0.8, 0.8, 0.8], starting_currents=[1.0, 1.0, 1.0, 1.0],
                  sleep_time=3, wavelength=660,
                  threshold=0.001, debug=False):
         super().__init__()
@@ -45,12 +45,12 @@ class LUTMeasurement(QThread):
         self.threshold = threshold
 
         # Six Projector Set-Up
-        self.led_names = ['R', 'G', 'B', 'O', 'C', 'V']
-        self.leds = [10, 4, 1, 8, 3, 0]
-        self.peak_wavelengths = [640, 520, 452, 592, 492, 412]
+        # self.led_names = ['R', 'G', 'B', 'O', 'C', 'V']
+        # self.leds = [10, 4, 1, 8, 3, 0]
+        # self.peak_wavelengths = [640, 520, 452, 592, 492, 412]
 
         # Twelve-Projector Set-Up
-        self.four_leds = list(range(1, 5))
+        self.four_leds = list(range(4))  # just use zero-indexed LED names
         self.four_led_peaks = [452, 520, 592, 640]
 
         # configure LUT Directory
@@ -59,21 +59,14 @@ class LUTMeasurement(QThread):
         else:
             self.lut_directory: str = str(lut_directory)
 
-        os.makedirs(self.lut_directory, exist_ok=True)
-        self.lut_rgb_path = os.path.join(self.lut_directory, 'rgb.csv')
-        if not os.path.exists(self.lut_rgb_path):
-            createAllOnSequenceFile(self.lut_rgb_path, starting_pwm, starting_current, mode='RGB')
-            rgb_start_points = [[starting_pwm for _ in range(8)] for _ in range(3)]
-        else:
-            rgb_start_points = self.readOutSequenceFile(self.lut_rgb_path)
-        self.lut_ocv_path = os.path.join(self.lut_directory, 'ocv.csv')
-        if not os.path.exists(self.lut_ocv_path):
-            createAllOnSequenceFile(self.lut_ocv_path, starting_pwm, starting_current, mode='OCV')
-            ocv_start_points = [[starting_pwm for _ in range(8)] for _ in range(3)]
-        else:
-            ocv_start_points = self.readOutSequenceFile(self.lut_ocv_path)
-        self.start_points = rgb_start_points + ocv_start_points
-        print(self.start_points)
+        self.lut_rgo_path = os.path.join(self.lut_directory, 'rgo.csv')
+        self.lut_bgo_path = os.path.join(self.lut_directory, 'bgo.csv')
+
+        print(starting_pwms, starting_currents)
+        if not os.path.exists(self.lut_rgo_path) or not os.path.exists(self.lut_bgo_path):
+            createRGOBGOFiles([self.lut_rgo_path, self.lut_bgo_path], starting_pwms, starting_currents)
+
+        self.start_control_points = readOutStartingPoints([self.lut_rgo_path, self.lut_bgo_path])
 
         # alternate file paths for different routines.
         self.gamma_directory = gamma_directory
@@ -89,17 +82,22 @@ class LUTMeasurement(QThread):
         self.display_color.emit(QColor(color[0], color[1], color[2]))
         time.sleep(self.sleep_time)
 
-    def editSequenceFile(self, seq_file, led, level, pwm, current=1):
+    def editSequenceFile(self, led, level, pwm, current=None):
         # convert led and level into a row number
-        row_number = 3 * level + (led % 3)
+        for seq_file in [self.lut_rgo_path, self.lut_bgo_path]:
+            if led == 0 and seq_file == self.lut_rgo_path:  # blue LED,
+                continue
+            if led == 3 and seq_file == self.lut_bgo_path:  # red LED, ignore BGO
+                continue
+            row_number = 3 * level + (led % 3)  # make sure it's between [0, 1, 2]
+            df = pd.read_csv(seq_file)
+            # Edit a specific cell by row and column indices
+            df.loc[row_number, 'LED PWM (%)'] = pwm * 100  # Modify the value at a specific cell
+            if current is not None:
+                df.loc[row_number, 'LED current (%)'] = current * 100  # Modify the value at a specific cell
 
-        df = pd.read_csv(seq_file)
-        # Edit a specific cell by row and column indices
-        df.loc[row_number, 'LED PWM (%)'] = pwm * 100  # Modify the value at a specific cell
-        df.loc[row_number, 'LED current (%)'] = current * 100  # Modify the value at a specific cell
-
-        # Save the updated DataFrame back to CSV
-        df.to_csv(seq_file, index=False)
+            # Save the updated DataFrame back to CSV
+            df.to_csv(seq_file, index=False)
 
     def readOutSequenceFile(self, seq_file):
         df = pd.read_csv(seq_file)
@@ -115,20 +113,24 @@ class LUTMeasurement(QThread):
         return pwms
 
     def sendUpdatedSeqTable(self, led, level, pwm, current):
-        mode = 'RGB' if led < 3 else 'OCV'
-        seq_file = self.lut_rgb_path if mode == 'RGB' else self.lut_ocv_path
-
-        self.editSequenceFile(seq_file, led, level, pwm, current)
+        self.editSequenceFile(led, level, pwm, current)
         self.setTableToMode(led)
 
-    def setTableToMode(self, led=None, filename: Union[str, None] = None):
-        if filename:
-            seq_file = filename
-        elif led is not None:
-            seq_file = self.lut_rgb_path if led < 3 else self.lut_ocv_path
+    def setTableToMode(self, led=None, filename=None):
+        if filename is not None:
+            self.send_seq_table.emit(self.lut_rgo_path, self.lut_bgo_path)
+            time.sleep(self.sleep_time)
+            return
+
+        if led in [1, 2]:  # G or O
+            self.send_seq_table.emit(self.lut_rgo_path, self.lut_bgo_path)
+        elif led == 0:  # Red
+            self.send_seq_table.emit(self.lut_rgo_path, self.lut_rgo_path)
+        elif led == 3:  # Blue
+            self.send_seq_table.emit(self.lut_bgo_path, self.lut_bgo_path)
         else:
-            raise ValueError("Must provide either a filename or a led number")
-        self.send_seq_table.emit(seq_file)
+            raise ValueError("LED not in range 0-3 -- This setup only calibrates RGO/BGO setup")
+
         time.sleep(self.sleep_time)
 
     def zeroBackground(self, led):
@@ -237,16 +239,16 @@ class LUTMeasurement(QThread):
         os.makedirs(self.gamma_directory, exist_ok=True)
 
     def runGammaCheck(self):
-        self.led_list = list(range(6))
         self.checkGammaDirectory()
         for led_idx, led in enumerate(self.led_list):
+            self.setTableToMode(led)
             gamma_check_power_filename = os.path.join(self.gamma_directory, f'gamma_check_{led}.csv')
             with open(gamma_check_power_filename, 'w') as file:
                 file.write('Control,Power\n')
             self.zeroBackground(led)
 
             if not self.debug:
-                self.instrum.setInstrumWavelength(self.four_led_peaks[led])
+                self.instrum.setInstrumWavelength(self.four_led_peaks[led_idx])
             last_control = 0
             for i in range(0, 256, 5):
                 # set background color to the level we're measuring
@@ -262,7 +264,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLUTCheck(self):
-        self.led_list = [3]
+        self.led_list = self.four_leds
         lut_checks = [[2 ** i - 1, 2**i] for i in range(1, 8)]
         lut_checks = [item for sublist in lut_checks for item in sublist]
 
@@ -291,7 +293,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLutCalibration(self):
-        led_list = self.four_leds  # RGBO
+        led_list = self.four_leds  # BGOR
         max_powers_80 = self.measureLevel(led_list, 128)
         path_name = os.path.join(self.lut_directory, 'max-powers.npy')
         np.save(path_name, max_powers_80)
@@ -338,8 +340,6 @@ class LUTMeasurement(QThread):
         df_spectrums.to_csv(os.path.join(self.peak_spectra_directory, 'spectrums.csv'), index=False)
         df_luminances.to_csv(os.path.join(self.peak_spectra_directory, 'luminances.csv'), index=False)
 
-        plt.plot(spectrum[0], np.array(spectrums).T)
-
         return
 
     def setCalibrationParams(self, led_list, set_points, start_control_vals):
@@ -377,7 +377,7 @@ def runLUTCalibration(gui):
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwm=0.8, sleep_time=2, threshold=0.00005, debug=False)
+    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwm=0.8, sleep_time=2, threshold=0.0001, debug=False)
     calibpid = gui.calibpid
 
     gui.config = ConfigurationFile(gui)
