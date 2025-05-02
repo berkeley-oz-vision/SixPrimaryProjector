@@ -50,14 +50,15 @@ class LUTMeasurement(QThread):
         self.peak_wavelengths = [640, 520, 452, 592, 492, 412]
 
         # Twelve-Projector Set-Up
-        self.twelve_leds = list(range(1, 13))
-        self.twelve_led_peaks = [412, 452, 468, 492, 520, 556, 552, 556, 592, 624, 640, 668]
+        self.four_leds = list(range(1, 5))
+        self.four_led_peaks = [452, 520, 592, 640]
 
         # configure LUT Directory
         if lut_directory is None:
             raise ValueError("LUT Directory must be provided")
         else:
             self.lut_directory: str = str(lut_directory)
+
         os.makedirs(self.lut_directory, exist_ok=True)
         self.lut_rgb_path = os.path.join(self.lut_directory, 'rgb.csv')
         if not os.path.exists(self.lut_rgb_path):
@@ -133,7 +134,7 @@ class LUTMeasurement(QThread):
     def zeroBackground(self, led):
         self.setBackgroundColor([0, 0, 0])
         if not self.debug:
-            self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
+            self.instrum.setInstrumWavelength(self.four_led_peaks[led])
             self.setTableToMode(led=led)
             time.sleep(self.sleep_time * 2)
             self.instrum.zeroPowerMeter()
@@ -163,7 +164,7 @@ class LUTMeasurement(QThread):
             self.zeroBackground(led)
 
             if not self.debug:
-                self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
+                self.instrum.setInstrumWavelength(self.four_led_peaks[led])
             last_control = 0.0
             for level_idx, level in enumerate(self.levels):
                 if level_idx == 0:  # skip the 128 mask, as we're going to take whatever the first mask says since we measured it
@@ -245,7 +246,7 @@ class LUTMeasurement(QThread):
             self.zeroBackground(led)
 
             if not self.debug:
-                self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
+                self.instrum.setInstrumWavelength(self.four_led_peaks[led])
             last_control = 0
             for i in range(0, 256, 5):
                 # set background color to the level we're measuring
@@ -273,7 +274,7 @@ class LUTMeasurement(QThread):
             self.zeroBackground(led)
 
             if not self.debug:
-                self.instrum.setInstrumWavelength(self.peak_wavelengths[led])
+                self.instrum.setInstrumWavelength(self.four_led_peaks[led])
             last_control = 0
 
             for i in lut_checks:
@@ -290,7 +291,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLutCalibration(self):
-        led_list = [3]  # RGBO
+        led_list = self.four_leds  # RGBO
         max_powers_80 = self.measureLevel(led_list, 128)
         path_name = os.path.join(self.lut_directory, 'max-powers.npy')
         np.save(path_name, max_powers_80)
@@ -306,7 +307,7 @@ class LUTMeasurement(QThread):
 
     def runSpectralMeasurement(self, led_list=None):
         if led_list is None:
-            led_list = self.twelve_leds
+            led_list = self.four_leds
 
         if self.peak_spectra_directory is None:
             raise ValueError("Peak Spectra Directory must be defined")
