@@ -310,7 +310,9 @@ class NewPortWrapper:
                 'FILTer': 3,
                 'DIGITALFILTER': 10000,
                 'ANALOGFILTER': 4,
-                'Lambda': 550
+                'Lambda': 550,
+                'AUTO': 0,
+                'RANge': 1,
             }
             for k, v in settings.items():
                 nd.write(f"PM:{k} {str(v)}")
@@ -319,6 +321,7 @@ class NewPortWrapper:
         else:
             print(nd.status)
             sys.exit(1)
+
 
     def read_buffer(self, buff_size=10000, interval_ms=0.1):
         """
@@ -333,7 +336,7 @@ class NewPortWrapper:
         self.instrum.write('PM:DS:INT ' + str(
             interval_ms * 10))  # to set 1 ms rate we have to give int value of 10. This is strange as manual says the INT should be in ms
         self.instrum.write('PM:DS:ENable 1')
-        while int(self.ask('PM:DS:COUNT?')) < buff_size:  # Waits for the buffer is full or not.
+        while int(self.instrum.ask('PM:DS:COUNT?')) < buff_size:  # Waits for the buffer is full or not.
             time.sleep(0.001 * interval_ms * buff_size / 10)
         actualwavelength = self.instrum.ask('PM:Lambda?')
         mean_power = self.instrum.ask('PM:STAT:MEAN?')
@@ -350,7 +353,7 @@ class NewPortWrapper:
             # power = float(self.instrum.ask("PM:Power?")) * 1000000.0  # measure in microwatts
             wv, mean_power, std_power = self.read_buffer()
             print(std_power)
-            return mean_power
+            return float(mean_power) * 1000000.0 # measure in microwatts
 
         num_tries = 5
         while num_tries > 0:  # this function is so faulty so we gotta break off a thread
