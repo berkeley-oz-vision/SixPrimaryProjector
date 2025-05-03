@@ -349,6 +349,7 @@ class NewPortWrapper:
         def record_power():
             # power = float(self.instrum.ask("PM:Power?")) * 1000000.0  # measure in microwatts
             wv, mean_power, std_power = self.read_buffer()
+            print(std_power)
             return mean_power
 
         num_tries = 5
