@@ -320,6 +320,27 @@ class NewPortWrapper:
             print(nd.status)
             sys.exit(1)
 
+    def read_buffer(self, buff_size=10000, interval_ms=0.1):
+        """
+        Stores the power values at a certain wavelength.
+        :param wavelength: float: Wavelength at which this operation should be done. float.
+        :param buff_size: int: nuber of readings that will be taken
+        :param interval_ms: float: Time between readings in ms.
+        :return: [actualwavelength,mean_power,std_power]
+        """
+        self.instrum.write('PM:DS:Clear')
+        self.instrum.write('PM:DS:SIZE ' + str(buff_size))
+        self.instrum.write('PM:DS:INT ' + str(
+            interval_ms * 10))  # to set 1 ms rate we have to give int value of 10. This is strange as manual says the INT should be in ms
+        self.instrum.write('PM:DS:ENable 1')
+        while int(self.ask('PM:DS:COUNT?')) < buff_size:  # Waits for the buffer is full or not.
+            time.sleep(0.001 * interval_ms * buff_size / 10)
+        actualwavelength = self.instrum.ask('PM:Lambda?')
+        mean_power = self.instrum.ask('PM:STAT:MEAN?')
+        std_power = self.instrum.ask('PM:STAT:SDEV?')
+        self.instrum.write('PM:DS:Clear')
+        return [actualwavelength, mean_power, std_power]
+
     def measurePower(self):
         """
         Measures the power using the Newport 1918-C Power Meter with default settings. 
@@ -327,7 +348,9 @@ class NewPortWrapper:
         """
         def record_power():
             power = float(self.instrum.ask("PM:Power?")) * 1000000.0  # measure in microwatts
-            return power
+            wv, mean_power, std_power = self.instrum.read_buffer()
+
+            return mean_power
 
         num_tries = 5
         while num_tries > 0:  # this function is so faulty so we gotta break off a thread

@@ -194,7 +194,7 @@ class LUTMeasurement(QThread):
                 time.sleep(0.1)
 
                 itr = 0
-                accum_powers =[]
+                accum_powers = []
                 while True:
                     control = pid(power, dt=0.01)
                     # send the sequence to the device & measure
