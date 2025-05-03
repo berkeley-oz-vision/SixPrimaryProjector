@@ -181,7 +181,7 @@ class LUTMeasurement(QThread):
                 # setup PID for this mask
                 set_point = self.set_points[led_idx][level_idx]
                 starting_control = self.start_control_vals[led_idx][level_idx]
-                pid = PID(0.000139, 0.2 * 2**(level_idx + 6), 0.000000052, setpoint=set_point,
+                pid = PID(0.000139, 0.2 * 2**(level_idx + 3), 0.000000052, setpoint=set_point,
                           sample_time=None, starting_output=starting_control)
                 pid.output_limits = (0, 1)
 
@@ -219,12 +219,12 @@ class LUTMeasurement(QThread):
                             powers += [self.instrum.measurePower() if not self.debug else 0.1]
                             time.sleep(0.1)
 
-                        if abs(np.mean(powers) - pid.setpoint) < threshold and (np.mean(powers)-pid.setpoint) > 0:
-                            print("Control is stable. Breaking and Moving onto next bitmask")
-                            break
-                        elif np.std(powers) > threshold:
-                            print("Control is not stable. Continuing to finetune.")
-                            continue
+                        # if abs(np.mean(powers) - pid.setpoint) < threshold and (np.mean(powers)-pid.setpoint) > 0:
+                        #     print("Control is stable. Breaking and Moving onto next bitmask")
+                        #     break
+                        # elif np.std(powers) > threshold:
+                        #     print("Control is not stable. Continuing to finetune.")
+                        #     continue
 
                     if itr % 10 == 0 and itr > 10:
                         std_dev = np.std(accum_powers)
@@ -276,7 +276,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLUTCheck(self):
-        self.led_list = self.four_leds
+        self.led_list = [1, 2, 3] # self.four_leds
         lut_checks = [[2 ** i - 1, 2**i] for i in range(1, 8)]
         lut_checks = [item for sublist in lut_checks for item in sublist]
 
@@ -391,7 +391,7 @@ def runLUTCalibration(gui):
 
     # calibpid is the worker
     gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwms=[0.8, 0.8, 0.8, 0.8], starting_currents=[1.0, 1.0, 1.0, 1.0],
-                                  sleep_time=2, threshold=0.0001, debug=False)
+                                  sleep_time=2, threshold=0.001, debug=False)
     calibpid = gui.calibpid
 
     gui.config = ConfigurationFile(gui)
