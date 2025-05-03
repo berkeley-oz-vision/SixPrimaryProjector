@@ -153,7 +153,7 @@ class LUTMeasurement(QThread):
             color[led % 3] = level
             self.setBackgroundColor(color)
             time.sleep(self.sleep_time)
-            powers += [self.instrum.measurePower() if not self.debug else 0.1]
+            powers += [self.instrum.measurePowerAndStd() if not self.debug else 0.1]
             time.sleep(self.sleep_time)  # need to sleep as measurePower has no automatic sleep
 
         return powers
@@ -161,7 +161,7 @@ class LUTMeasurement(QThread):
     def plotPidData(self, elapsed_time, power, control, target):
         self.data_generated.emit(elapsed_time, power, control, power, target)
 
-    def runCalibration(self):
+    def runCalibration(self, skip_level=128):
         for led_idx, led in enumerate(self.led_list):
             self.setTableToMode(led)
             self.zeroBackground(led)
@@ -170,7 +170,7 @@ class LUTMeasurement(QThread):
                 self.instrum.setInstrumWavelength(self.four_led_peaks[led])
             last_control = 0.0
             for level_idx, level in enumerate(self.levels):
-                if level_idx == 0:  # skip the 128 mask, as we're going to take whatever the first mask says since we measured it
+                if level == skip_level:  # skip the mask we're using to set the setpoints
                     continue
 
                 # set background color to the level we're measuring
@@ -190,16 +190,15 @@ class LUTMeasurement(QThread):
                 start_time = time.time()
                 # send sequence to device, and then measure
                 self.sendUpdatedSeqTable(led, level_idx, starting_control, 1)
-                power = self.instrum.measurePower() if not self.debug else 0.1
+                power, std = self.instrum.measurePower(returnSTD=True) if not self.debug else 0.1
                 time.sleep(0.1)
 
                 itr = 0
-                accum_powers = []
                 while True:
                     control = pid(power, dt=0.01)
                     # send the sequence to the device & measure
                     self.sendUpdatedSeqTable(led, level_idx, control, 1)
-                    power = self.instrum.measurePower() if not self.debug else 0.1
+                    power, std = self.instrum.measurePower(returnSTD=True) if not self.debug else 0.1, 0
                     time.sleep(0.2)
 
                     print(led, level, control, power, set_point)
@@ -213,28 +212,17 @@ class LUTMeasurement(QThread):
                     threshold = self.threshold / 4 if level < 16 else self.threshold
                     if abs(power - pid.setpoint) < threshold and (power-pid.setpoint) > 0:  # always finetune to the positive value
                         # logging.info(f'Gamma calibration for led {led} level {level} complete - Control: {control} Power: {power}')
-                        print("Checking if stable...")
-                        powers = []
-                        for i in range(5):
-                            powers += [self.instrum.measurePower() if not self.debug else 0.1]
-                            time.sleep(0.1)
+                        print("Control is stable. Breaking and Moving onto next bitmask")
 
-                        # if abs(np.mean(powers) - pid.setpoint) < threshold and (np.mean(powers)-pid.setpoint) > 0:
-                        #     print("Control is stable. Breaking and Moving onto next bitmask")
-                        #     break
-                        # elif np.std(powers) > threshold:
-                        #     print("Control is not stable. Continuing to finetune.")
-                        #     continue
-
-                    if itr % 10 == 0 and itr > 10:
-                        std_dev = np.std(accum_powers)
-                        if std_dev > threshold and np.abs(np.mean(accum_powers) - pid.setpoint) < self.threshold/2:
-                            print("Control cannot finetune further. Breaking")
-                            break
-                        else:
-                            accum_powers = []
-                    else:
-                        accum_powers += [power]
+                    # if itr % 10 == 0 and itr > 10:
+                    #     std_dev = np.std(accum_powers)
+                    #     if std_dev > threshold and np.abs(np.mean(accum_powers) - pid.setpoint) < self.threshold/2:
+                    #         print("Control cannot finetune further. Breaking")
+                    #         break
+                    #     else:
+                    #         accum_powers = []
+                    # else:
+                    #     accum_powers += [power]
 
                     if abs(control - last_control) <= float(1/65535 / 2) and itr > 25:  # less than 8 bit precision
                         # logging.info(f'Gamma calibration for led {led} level {level} did not finish - Control: {control}, Power: {power}')
@@ -276,7 +264,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLUTCheck(self):
-        self.led_list = [1, 2, 3] # self.four_leds
+        self.led_list = self.four_leds
         lut_checks = [[2 ** i - 1, 2**i] for i in range(1, 8)]
         lut_checks = [item for sublist in lut_checks for item in sublist]
 
@@ -304,21 +292,19 @@ class LUTMeasurement(QThread):
                 time.sleep(0.5)
         return
 
-    def runLutCalibration(self):
+    def runLutCalibration(self, level_set=16):
         led_list = self.four_leds  # BGOR
-        max_powers_80 = self.measureLevel(led_list, 128)
+        max_powers = self.measureLevel(led_list, level_set)
         path_name = os.path.join(self.lut_directory, 'max-powers.npy')
-        np.save(path_name, max_powers_80)
-        print(max_powers_80)
-        # max_powers_80 = np.load('max-powers.npy')
+        np.save(path_name, max_powers)
+        print(max_powers)
 
         num_bitmasks = len(self.levels)
-        set_points = [[power/self.levels[num_bitmasks - i - 1] for i in range(num_bitmasks)] for power in max_powers_80]
+        set_points = [[power * self.levels[i] / level_set for i in range(num_bitmasks)] for power in max_powers]
 
-        # start_points = [[max_percentage for _ in range(num_bitmasks)] for _ in range(len(led_list))]
         actual_start_points = [self.start_control_points[i] for i in led_list]
         self.setCalibrationParams(led_list, set_points, actual_start_points)
-        self.runCalibration()
+        self.runCalibration(skip_level=level_set)
 
     def runSpectralMeasurement(self, led_list=None):
         if led_list is None:
@@ -390,7 +376,7 @@ def runLUTCalibration(gui):
     calibration_window = gui.calibration_window
 
     # calibpid is the worker
-    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwms=[0.8, 0.8, 0.8, 0.8], starting_currents=[1.0, 1.0, 1.0, 1.0],
+    gui.calibpid = LUTMeasurement(gui, folder_name, starting_pwms=[0.95, 0.95, 0.95, 0.95], starting_currents=[1.0, 1.0, 1.0, 1.0],
                                   sleep_time=2, threshold=0.001, debug=False)
     calibpid = gui.calibpid
 

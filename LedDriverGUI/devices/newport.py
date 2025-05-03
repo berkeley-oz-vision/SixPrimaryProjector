@@ -322,7 +322,6 @@ class NewPortWrapper:
             print(nd.status)
             sys.exit(1)
 
-
     def read_buffer(self, buff_size=10000, interval_ms=0.1):
         """
         Stores the power values at a certain wavelength.
@@ -344,16 +343,18 @@ class NewPortWrapper:
         self.instrum.write('PM:DS:Clear')
         return [actualwavelength, mean_power, std_power]
 
-    def measurePower(self):
+    def measurePower(self, returnSTD=False):
         """
-        Measures the power using the Newport 1918-C Power Meter with default settings. 
+        Measures the power using the Newport 1918-C Power Meter with default settings.
         Timeout is set to 5 seconds, in case for some reason it disconnects.
         """
         def record_power():
             # power = float(self.instrum.ask("PM:Power?")) * 1000000.0  # measure in microwatts
             wv, mean_power, std_power = self.read_buffer()
             print(std_power)
-            return float(mean_power) * 1000000.0 # measure in microwatts
+            if returnSTD:
+                return float(mean_power) * 1000000.0, float(std_power) * 1000000.0
+            return float(mean_power) * 1000000.0  # measure in microwatts
 
         num_tries = 5
         while num_tries > 0:  # this function is so faulty so we gotta break off a thread
@@ -369,9 +370,20 @@ class NewPortWrapper:
                     self.instrum = self.__init__()  # untested
         return power
 
+    def measurePowerAndStd(self, return_std=False, std_dev_thresh=0.001):
+        while True:
+            mean_power, std_power = self.read_buffer()
+            mean_power, std_power = float(mean_power) * 1000000.0, float(std_power) * 1000000.0  # in microwatts
+            if std_power < std_dev_thresh:  # make sure we take a stable measurement that isn't fluctuating like crazy
+                if return_std:
+                    return mean_power, std_power
+                else:
+                    return mean_power
+
     def setInstrumWavelength(self, wavelength):
         self.instrum.write(f"PM:Lambda {str(wavelength)}")
         assert (self.instrum.ask("PM:Lambda?") == str(wavelength))
 
     def zeroPowerMeter(self):
         self.instrum.write("PM:ZEROSTOre")
+        # return float(self.instrum.ask("PM:ZEROVALue?"))
