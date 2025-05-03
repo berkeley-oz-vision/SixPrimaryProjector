@@ -228,7 +228,7 @@ class LUTMeasurement(QThread):
 
                     if itr % 10 == 0 and itr > 10:
                         std_dev = np.std(accum_powers)
-                        if std_dev > threshold and np.abs(np.mean(powers) - pid.setpoint) < self.threshold/2:
+                        if std_dev > threshold and np.abs(np.mean(accum_powers) - pid.setpoint) < self.threshold/2:
                             print("Control cannot finetune further. Breaking")
                             break
                         else:
