@@ -136,7 +136,7 @@ class PR650:
 
 def connect_to_PR650():
 
-    input("Turn on the PR650 now, then shortly after press any button")
+    # input("Turn on the PR650 now, then shortly after press any button")
     if platform.system() == 'Darwin':  # Check if the system is macOS
         mac_port_name = '/dev/cu.usbserial-A104D0XS'
         return PR650(mac_port_name)
