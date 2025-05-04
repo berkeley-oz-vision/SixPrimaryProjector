@@ -341,7 +341,7 @@ class NewPortWrapper:
         mean_power = self.instrum.ask('PM:STAT:MEAN?')
         std_power = self.instrum.ask('PM:STAT:SDEV?')
         self.instrum.write('PM:DS:Clear')
-        return [actualwavelength, mean_power, std_power]
+        return mean_power, std_power
 
     def measurePower(self, returnSTD=False):
         """
@@ -350,7 +350,7 @@ class NewPortWrapper:
         """
         def record_power():
             # power = float(self.instrum.ask("PM:Power?")) * 1000000.0  # measure in microwatts
-            wv, mean_power, std_power = self.read_buffer()
+            mean_power, std_power = self.read_buffer()
             print(std_power)
             if returnSTD:
                 return float(mean_power) * 1000000.0, float(std_power) * 1000000.0
@@ -370,15 +370,12 @@ class NewPortWrapper:
                     self.instrum = self.__init__()  # untested
         return power
 
-    def measurePowerAndStd(self, return_std=False, std_dev_thresh=0.001):
+    def measurePowerAndStd(self, std_dev_thresh=0.001) -> float:
         while True:
             mean_power, std_power = self.read_buffer()
             mean_power, std_power = float(mean_power) * 1000000.0, float(std_power) * 1000000.0  # in microwatts
             if std_power < std_dev_thresh:  # make sure we take a stable measurement that isn't fluctuating like crazy
-                if return_std:
-                    return mean_power, std_power
-                else:
-                    return mean_power
+                return mean_power
 
     def setInstrumWavelength(self, wavelength):
         self.instrum.write(f"PM:Lambda {str(wavelength)}")
