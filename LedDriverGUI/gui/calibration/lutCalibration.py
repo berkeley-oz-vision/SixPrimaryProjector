@@ -190,7 +190,7 @@ class LUTMeasurement(QThread):
                 start_time = time.time()
                 # send sequence to device, and then measure
                 self.sendUpdatedSeqTable(led, level_idx, starting_control, 1)
-                power, std = self.instrum.measurePower(returnSTD=True) if not self.debug else 0.1
+                power = self.instrum.measurePowerAndStd() if not self.debug else 0.1
                 time.sleep(0.1)
 
                 itr = 0
@@ -198,7 +198,7 @@ class LUTMeasurement(QThread):
                     control = pid(power, dt=0.01)
                     # send the sequence to the device & measure
                     self.sendUpdatedSeqTable(led, level_idx, control, 1)
-                    power, std = self.instrum.measurePower(returnSTD=True) if not self.debug else 0.1, 0
+                    power = self.instrum.measurePowerAndStd() if not self.debug else 0.1
                     time.sleep(0.2)
 
                     print(led, level, control, power, set_point)
@@ -208,21 +208,12 @@ class LUTMeasurement(QThread):
                     self.plotPidData(elapsed_time, power, control, set_point)
 
                     itr = itr + 1
-                    # threshold= self.threshold
-                    threshold = self.threshold / 4 if level < 16 else self.threshold
+                    threshold = self.threshold
+                    # threshold = self.threshold / 4 if level < 16 else self.threshold
                     if abs(power - pid.setpoint) < threshold and (power-pid.setpoint) > 0:  # always finetune to the positive value
                         # logging.info(f'Gamma calibration for led {led} level {level} complete - Control: {control} Power: {power}')
                         print("Control is stable. Breaking and Moving onto next bitmask")
-
-                    # if itr % 10 == 0 and itr > 10:
-                    #     std_dev = np.std(accum_powers)
-                    #     if std_dev > threshold and np.abs(np.mean(accum_powers) - pid.setpoint) < self.threshold/2:
-                    #         print("Control cannot finetune further. Breaking")
-                    #         break
-                    #     else:
-                    #         accum_powers = []
-                    # else:
-                    #     accum_powers += [power]
+                        break
 
                     if abs(control - last_control) <= float(1/65535 / 2) and itr > 25:  # less than 8 bit precision
                         # logging.info(f'Gamma calibration for led {led} level {level} did not finish - Control: {control}, Power: {power}')
@@ -256,7 +247,7 @@ class LUTMeasurement(QThread):
                 color[led % 3] = i
                 self.setBackgroundColor(color)
 
-                power = self.instrum.measurePower() if not self.debug else 0.1
+                power = self.instrum.measurePowerAndStd() if not self.debug else 0.1
                 with open(gamma_check_power_filename, 'a') as file:
                     file.write(f'{i},{power},\n')
                 print(f"Led: {led}, color: {color}, power: {power}")
@@ -285,7 +276,7 @@ class LUTMeasurement(QThread):
                 color[led % 3] = i
                 self.setBackgroundColor(color)
 
-                power = self.instrum.measurePower() if not self.debug else 0.1
+                power = self.instrum.measurePowerAndStd() if not self.debug else 0.1
                 with open(gamma_check_power_filename, 'a') as file:
                     file.write(f'{i},{power},\n')
                 print(f"Led: {led}, color: {color}, power: {power}")
@@ -293,7 +284,7 @@ class LUTMeasurement(QThread):
         return
 
     def runLutCalibration(self, level_set=16):
-        led_list = self.four_leds  # BGOR
+        led_list = [1, 2, 3] # self.four_leds  # BGOR
         max_powers = self.measureLevel(led_list, level_set)
         path_name = os.path.join(self.lut_directory, 'max-powers.npy')
         np.save(path_name, max_powers)
