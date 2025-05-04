@@ -42,26 +42,29 @@ class PR650:
                       '00': 'OK'
                       }
         self.com = serial.Serial(self.port, 9600, timeout=10)
-        try:
-            # self.com.open()
-            self.isOpen = True
-            self.OK = True
-            time.sleep(1.0)  # pause to allow connection to come up
-            reply = self.sendMessage('b1')  # turn on the backlight
-            print('PR650 reply: ', reply)
-            print("Successfully opened PR650 on port %s" % self.port)
-        except:
-            print("PR650: Couldn't open serial port %s" % self.port)
-            print("Check permissions and lock files.")
-            self.OK = False
-            self.com.close()
-            return None
-        if reply.decode() != self.codes['OK']:
-            print("PR650 isn't communicating")
-            self.OK = False
-            self.com.close()  # in this case we need to close the port again
-        else:
-            reply = self.sendMessage('s01,,,,,,01,1')  # send the 'set' command
+        print("Spinning to attempt to open PR650 on port %s" % self.port)
+        while True:
+            try:
+                # self.com.open()
+                self.isOpen = True
+                self.OK = True
+                time.sleep(1.0)  # pause to allow connection to come up
+                reply = self.sendMessage('b1')  # turn on the backlight
+                print('PR650 reply: ', reply)
+                print("Successfully opened PR650 on port %s" % self.port)
+            except:
+                print("PR650: Couldn't open serial port %s" % self.port)
+                print("Check permissions and lock files.")
+                self.OK = False
+                self.com.close()
+                return None
+            if reply.decode() != self.codes['OK']:
+                print("PR650 isn't communicating")
+                self.OK = False
+                self.com.close()  # in this case we need to close the port again
+            else:
+                reply = self.sendMessage('s01,,,,,,01,1')  # send the 'set' command
+                break
 
     def sendMessage(self, message, timeout: float = 30.0, DEBUG=False) -> bytes | list[bytes]:
         # send command and wait specified timeout for response (must be long
