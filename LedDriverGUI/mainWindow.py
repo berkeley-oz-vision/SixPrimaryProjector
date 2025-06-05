@@ -5,10 +5,11 @@ import qdarkstyle  # This awesome style sheet was made by Colin Duquesnoy and Da
 from collections import OrderedDict
 from .gui import guiMapper
 from .gui import guiSequence as seq
-from .gui.utils import driverUSB
+from .gui.utils import driverUSB, controllerUSB
 from .gui.windows import statusWindow, syncPlotWindow
 
 import os
+import copy
 import sys
 from timeit import default_timer as timer
 import pickle
@@ -21,6 +22,7 @@ def get_resource_path(path, resource_name):
         return str(resource_path)  # Convert to string for path use
 
 
+N_STEPS = 4
 N_BOARDS = 3
 N_LEDS = 4
 DIAL_UPDATE_RATE = 0.05  # Time in s between updates from dial when in manual control - prevents dial from locking GUI with continuous updates when dial is swept
@@ -35,6 +37,8 @@ if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
 class Ui(QtWidgets.QMainWindow):
     # Need to initialize outside of init() https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
     status_signal = QtCore.pyqtSignal(object)
+    # Need to initialize outside of init() https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
+    controller_status_signal = QtCore.pyqtSignal(object)
     # Need to initialize outside of init() https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
     sync_update_signal = QtCore.pyqtSignal(object)
 
@@ -87,6 +91,26 @@ class Ui(QtWidgets.QMainWindow):
             for board in range(1, N_BOARDS+1):
                 self.status_dynamic_dict[key + str(board)] = 0
 
+        self.controller_status_dynamic_dict = OrderedDict()
+        for key in ["Button", "Switch", "LED", "Encoder"]:
+            self.controller_status_dynamic_dict[key] = OrderedDict()
+            for side in ["Left", "Right"]:
+                self.controller_status_dynamic_dict[key][side] = 0
+        self.controller_status_dynamic_dict["Built-in"] = 0
+
+        self.controller_status_dict = copy.deepcopy(self.controller_status_dynamic_dict)
+        self.controller_status_dict.update(OrderedDict([("Name", 0),
+                                                        ("COM Port", 0),
+                                                        ("Serial", 0),
+                                                        ("Control", 0),
+                                                        ("Left Name", 0),
+                                                        ("Right Name", 0),
+                                                        ("Left Rates", [0] * N_STEPS),
+                                                        ("Right Rates", [0] * N_STEPS),
+                                                        ("LED Off", 0),
+                                                        ("LED On", 0),
+                                                        ("Interval", 0)]))
+
         self.status_dict = OrderedDict(list(self.status_dynamic_dict.items()) + [("Name", 0),
                                                                                  ("COM Port", 0),
                                                                                  ("Serial", 0),
@@ -103,10 +127,13 @@ class Ui(QtWidgets.QMainWindow):
 
         # Assign events to widgets
         self.ser = driverUSB.usbSerial(self)
+        self.controller = controllerUSB.usbSerial(self)
         guiMapper.initializeEvents(self)
         self.splash.showMessage("Searching for connected drivers...",
                                 alignment=QtCore.Qt.AlignBottom, color=QtCore.Qt.white)
         self.ser.getDriverPort(True)
+        self.controller.getDriverPort(True)
+
         if self.splash.isVisible():
             self.splash.finish(self)
         self.startup = False  # Set flag to exiting startup
@@ -216,10 +243,14 @@ class Ui(QtWidgets.QMainWindow):
             self.sync_window_list.append(syncPlotWindow.syncPlotWindow(self.app, self))
             self.sync_window_list[-1].show()
 
-    def updateSerialNumber(self, serial_number):
-        self.configure_name_driver_serial_label2.setText(serial_number)
-        self.main_model["Serial"].setText(serial_number)
-        self.status_dict["Serial"] = serial_number
+    def updateSerialNumber(self, serial_number, controller_num=False):
+        if controller_num:
+            self.main_model["Controller"]["Serial"].setText(serial_number)
+            self.controller_status_dict["Serial"] = serial_number
+        else:
+            self.configure_name_driver_serial_label2.setText(serial_number)
+            self.main_model["Serial"].setText(serial_number)
+            self.status_dict["Serial"] = serial_number
 
     def updateMain(self, status_dict):
         def widgetIndex(widget_list):

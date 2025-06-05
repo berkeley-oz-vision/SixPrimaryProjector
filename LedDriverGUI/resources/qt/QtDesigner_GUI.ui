@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>485</width>
-    <height>799</height>
+    <width>650</width>
+    <height>793</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -53,158 +53,8 @@
        <attribute name="title">
         <string>Main</string>
        </attribute>
-       <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,0,10,0" columnstretch="10,0">
-        <property name="horizontalSpacing">
-         <number>3</number>
-        </property>
-        <item row="0" column="0" colspan="2" alignment="Qt::AlignTop">
-         <widget class="QGroupBox" name="main_driver_ID_box">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>16777215</width>
-            <height>500</height>
-           </size>
-          </property>
-          <property name="toolTip">
-           <string>Identification of the active LED driver</string>
-          </property>
-          <property name="title">
-           <string>Driver ID</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,10,0,10">
-           <item row="0" column="0">
-            <widget class="QLabel" name="main_driver_name_label1">
-             <property name="toolTip">
-              <string>Custom driver name set in configuration</string>
-             </property>
-             <property name="text">
-              <string>Name:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QLabel" name="main_driver_name_label2">
-             <property name="text">
-              <string/>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="2" alignment="Qt::AlignTop">
-            <widget class="QLabel" name="main_driver_serial_label1">
-             <property name="toolTip">
-              <string>USB serial number of the Teensy controlling the LED driver.</string>
-             </property>
-             <property name="text">
-              <string>Serial #:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="3">
-            <widget class="QLabel" name="main_driver_serial_label2">
-             <property name="text">
-              <string>Disconnected</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="2" column="1" rowspan="2">
-         <widget class="QGroupBox" name="main_toggle_box">
-          <property name="title">
-           <string>Toggle</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout_5">
-           <item row="1" column="0">
-            <widget class="QSlider" name="main_toggle_slider">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="maximum">
-              <number>1</number>
-             </property>
-             <property name="pageStep">
-              <number>1</number>
-             </property>
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="0">
-            <widget class="QLabel" name="main_toggle_manual_label">
-             <property name="text">
-              <string>Manual</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignCenter</set>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="main_toggle_sync_label">
-             <property name="text">
-              <string>Sync</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignCenter</set>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="4" column="0" colspan="2">
-         <widget class="QGroupBox" name="groupBox">
-          <property name="title">
-           <string>Manual Control Source</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout_8">
-           <item row="0" column="0">
-            <widget class="QPushButton" name="main_control_physical_button">
-             <property name="toolTip">
-              <string>Enable physical control of LED driver via knob and switch.  Ignores GUI inputs.</string>
-             </property>
-             <property name="text">
-              <string>LED Driver</string>
-             </property>
-             <property name="checkable">
-              <bool>true</bool>
-             </property>
-             <attribute name="buttonGroup">
-              <string notr="true">main_toggle_control_group</string>
-             </attribute>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QPushButton" name="main_control_software_button">
-             <property name="toolTip">
-              <string>Enable GUI control of LED driver.  Ignores physical knob and toggle switch on driver.</string>
-             </property>
-             <property name="text">
-              <string>Software</string>
-             </property>
-             <property name="checkable">
-              <bool>true</bool>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
-             </property>
-             <attribute name="buttonGroup">
-              <string notr="true">main_toggle_control_group</string>
-             </attribute>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="2" column="0" rowspan="2">
+       <layout class="QGridLayout" name="gridLayout_2" columnstretch="10,0">
+        <item row="3" column="0">
          <widget class="QGroupBox" name="main_intensity_control_box">
           <property name="toolTip">
            <string>Adjust the active LED intensity</string>
@@ -327,7 +177,165 @@
           </layout>
          </widget>
         </item>
+        <item row="3" column="1">
+         <widget class="QGroupBox" name="main_toggle_box">
+          <property name="title">
+           <string>Toggle</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_5">
+           <item row="1" column="0">
+            <widget class="QSlider" name="main_toggle_slider">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="maximum">
+              <number>1</number>
+             </property>
+             <property name="pageStep">
+              <number>1</number>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="main_toggle_manual_label">
+             <property name="text">
+              <string>Manual</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="main_toggle_sync_label">
+             <property name="text">
+              <string>Sync</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="2">
+         <widget class="QGroupBox" name="main_driver_ID_box">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>500</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Identification of the active LED driver</string>
+          </property>
+          <property name="title">
+           <string>Driver ID</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,10,0,10">
+           <item row="0" column="0">
+            <widget class="QLabel" name="main_driver_name_label1">
+             <property name="toolTip">
+              <string>Custom driver name set in configuration</string>
+             </property>
+             <property name="text">
+              <string>Name:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="main_driver_name_label2">
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2" alignment="Qt::AlignTop">
+            <widget class="QLabel" name="main_driver_serial_label1">
+             <property name="toolTip">
+              <string>USB serial number of the Teensy controlling the LED driver.</string>
+             </property>
+             <property name="text">
+              <string>Serial #:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QLabel" name="main_driver_serial_label2">
+             <property name="text">
+              <string>Disconnected</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
         <item row="1" column="0" colspan="2">
+         <widget class="QGroupBox" name="main_controller_ID_box">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>500</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Identification of the active LED driver</string>
+          </property>
+          <property name="title">
+           <string>Controller ID</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_7" columnstretch="0,10,0,10">
+           <item row="0" column="0">
+            <widget class="QLabel" name="main_controller_name_label1">
+             <property name="toolTip">
+              <string>Custom driver name set in configuration</string>
+             </property>
+             <property name="text">
+              <string>Name:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="main_controller_name_label2">
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2" alignment="Qt::AlignTop">
+            <widget class="QLabel" name="main_controller_serial_label1">
+             <property name="toolTip">
+              <string>USB serial number of the Teensy controlling the LED driver.</string>
+             </property>
+             <property name="text">
+              <string>Serial #:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QLabel" name="main_controller_serial_label2">
+             <property name="text">
+              <string>Disconnected</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="2" column="0" colspan="2">
          <widget class="QGroupBox" name="main_channel_box">
           <property name="toolTip">
            <string>Select active LED channel on driver</string>
@@ -342,19 +350,6 @@
            <property name="rightMargin">
             <number>0</number>
            </property>
-           <item row="0" column="4">
-            <widget class="QRadioButton" name="main_channel_LED13_button">
-             <property name="toolTip">
-              <string>Set LED #3 as the active LED</string>
-             </property>
-             <property name="text">
-              <string>LED #3</string>
-             </property>
-             <attribute name="buttonGroup">
-              <string notr="true">main_channel_button_group</string>
-             </attribute>
-            </widget>
-           </item>
            <item row="0" column="2">
             <widget class="QRadioButton" name="main_channel_LED11_button">
              <property name="toolTip">
@@ -365,19 +360,6 @@
              </property>
              <property name="checked">
               <bool>true</bool>
-             </property>
-             <attribute name="buttonGroup">
-              <string notr="true">main_channel_button_group</string>
-             </attribute>
-            </widget>
-           </item>
-           <item row="0" column="5">
-            <widget class="QRadioButton" name="main_channel_LED14_button">
-             <property name="toolTip">
-              <string>Set LED #4 as the active LED</string>
-             </property>
-             <property name="text">
-              <string>LED #4</string>
              </property>
              <attribute name="buttonGroup">
               <string notr="true">main_channel_button_group</string>
@@ -397,30 +379,26 @@
              </attribute>
             </widget>
            </item>
-           <item row="1" column="5">
-            <widget class="QRadioButton" name="main_channel_LED24_button">
+           <item row="0" column="4">
+            <widget class="QRadioButton" name="main_channel_LED13_button">
+             <property name="toolTip">
+              <string>Set LED #3 as the active LED</string>
+             </property>
              <property name="text">
-              <string>LED #8</string>
+              <string>LED #3</string>
              </property>
              <attribute name="buttonGroup">
               <string notr="true">main_channel_button_group</string>
              </attribute>
             </widget>
            </item>
-           <item row="1" column="4">
-            <widget class="QRadioButton" name="main_channel_LED23_button">
-             <property name="text">
-              <string>LED #7</string>
+           <item row="0" column="5">
+            <widget class="QRadioButton" name="main_channel_LED14_button">
+             <property name="toolTip">
+              <string>Set LED #4 as the active LED</string>
              </property>
-             <attribute name="buttonGroup">
-              <string notr="true">main_channel_button_group</string>
-             </attribute>
-            </widget>
-           </item>
-           <item row="1" column="3">
-            <widget class="QRadioButton" name="main_channel_LED22_button">
              <property name="text">
-              <string>LED #6</string>
+              <string>LED #4</string>
              </property>
              <attribute name="buttonGroup">
               <string notr="true">main_channel_button_group</string>
@@ -437,10 +415,30 @@
              </attribute>
             </widget>
            </item>
-           <item row="2" column="3">
-            <widget class="QRadioButton" name="main_channel_LED32_button">
+           <item row="1" column="3">
+            <widget class="QRadioButton" name="main_channel_LED22_button">
              <property name="text">
-              <string>LED #10</string>
+              <string>LED #6</string>
+             </property>
+             <attribute name="buttonGroup">
+              <string notr="true">main_channel_button_group</string>
+             </attribute>
+            </widget>
+           </item>
+           <item row="1" column="4">
+            <widget class="QRadioButton" name="main_channel_LED23_button">
+             <property name="text">
+              <string>LED #7</string>
+             </property>
+             <attribute name="buttonGroup">
+              <string notr="true">main_channel_button_group</string>
+             </attribute>
+            </widget>
+           </item>
+           <item row="2" column="2">
+            <widget class="QRadioButton" name="main_channel_LED31_button">
+             <property name="text">
+              <string>LED #9</string>
              </property>
              <attribute name="buttonGroup">
               <string notr="true">main_channel_button_group</string>
@@ -467,13 +465,67 @@
              </attribute>
             </widget>
            </item>
-           <item row="2" column="2">
-            <widget class="QRadioButton" name="main_channel_LED31_button">
+           <item row="2" column="3">
+            <widget class="QRadioButton" name="main_channel_LED32_button">
              <property name="text">
-              <string>LED #9</string>
+              <string>LED #10</string>
              </property>
              <attribute name="buttonGroup">
               <string notr="true">main_channel_button_group</string>
+             </attribute>
+            </widget>
+           </item>
+           <item row="1" column="5">
+            <widget class="QRadioButton" name="main_channel_LED24_button">
+             <property name="text">
+              <string>LED #8</string>
+             </property>
+             <attribute name="buttonGroup">
+              <string notr="true">main_channel_button_group</string>
+             </attribute>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="4" column="0" colspan="2">
+         <widget class="QGroupBox" name="groupBox">
+          <property name="title">
+           <string>Manual Control Source</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_8">
+           <item row="0" column="0">
+            <widget class="QPushButton" name="main_control_physical_button">
+             <property name="toolTip">
+              <string>Enable physical control of LED driver via knob and switch.  Ignores GUI inputs.</string>
+             </property>
+             <property name="text">
+              <string>LED Driver</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+             <attribute name="buttonGroup">
+              <string notr="true">main_toggle_control_group</string>
+             </attribute>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QPushButton" name="main_control_software_button">
+             <property name="toolTip">
+              <string>Enable GUI control of LED driver.  Ignores physical knob and toggle switch on driver.</string>
+             </property>
+             <property name="text">
+              <string>Software</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+             <attribute name="buttonGroup">
+              <string notr="true">main_toggle_control_group</string>
              </attribute>
             </widget>
            </item>
@@ -544,8 +596,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>441</width>
-             <height>659</height>
+             <width>606</width>
+             <height>653</height>
             </rect>
            </property>
            <layout class="QGridLayout" name="gridLayout_23">
@@ -555,13 +607,13 @@
                <string>Select the active sync mode to configure</string>
               </property>
               <property name="currentIndex">
-               <number>0</number>
+               <number>3</number>
               </property>
               <widget class="QWidget" name="sync_digital_page">
                <property name="geometry">
                 <rect>
                  <x>0</x>
-                 <y>-122</y>
+                 <y>0</y>
                  <width>408</width>
                  <height>704</height>
                 </rect>
@@ -1465,11 +1517,11 @@
                          <property name="columnCount">
                           <number>4</number>
                          </property>
-                         <attribute name="verticalHeaderDefaultSectionSize">
-                          <number>25</number>
-                         </attribute>
                          <attribute name="verticalHeaderMinimumSectionSize">
                           <number>23</number>
+                         </attribute>
+                         <attribute name="verticalHeaderDefaultSectionSize">
+                          <number>25</number>
                          </attribute>
                          <row/>
                          <row/>
@@ -3331,29 +3383,150 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
                 </item>
                </layout>
               </widget>
-              <widget class="QWidget" name="sync_serial_page">
+              <widget class="QWidget" name="sync_controller_page">
                <property name="geometry">
                 <rect>
                  <x>0</x>
                  <y>0</y>
-                 <width>261</width>
-                 <height>35</height>
+                 <width>588</width>
+                 <height>480</height>
                 </rect>
                </property>
                <property name="toolTip">
                 <string>Stream LED intensity changes to driver over USB</string>
                </property>
                <attribute name="label">
-                <string>Serial</string>
+                <string>Controller</string>
                </attribute>
-               <layout class="QGridLayout" name="gridLayout_68">
-                <item row="0" column="0" alignment="Qt::AlignTop">
-                 <widget class="QLabel" name="sync_serial_label">
-                  <property name="toolTip">
-                   <string>Stream LED intensity changes to driver over USB</string>
+               <layout class="QGridLayout" name="gridLayout_67">
+                <item row="2" column="0" colspan="2">
+                 <widget class="QGroupBox" name="sync_controller_led_box">
+                  <property name="title">
+                   <string>LED Intensity</string>
                   </property>
+                  <layout class="QGridLayout" name="gridLayout_58" columnstretch="0,0">
+                   <item row="1" column="1">
+                    <widget class="QSlider" name="sync_controller_led_on_slider">
+                     <property name="maximum">
+                      <number>250</number>
+                     </property>
+                     <property name="pageStep">
+                      <number>1</number>
+                     </property>
+                     <property name="value">
+                      <number>250</number>
+                     </property>
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="tickPosition">
+                      <enum>QSlider::TicksBothSides</enum>
+                     </property>
+                     <property name="tickInterval">
+                      <number>25</number>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="0">
+                    <widget class="QLabel" name="sync_controller_led_off_label">
+                     <property name="text">
+                      <string>Off</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="1" column="0">
+                    <widget class="QLabel" name="sync_controller_led_on_label">
+                     <property name="text">
+                      <string>On</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="1">
+                    <widget class="QSlider" name="sync_controller_led_off_slider">
+                     <property name="maximum">
+                      <number>250</number>
+                     </property>
+                     <property name="pageStep">
+                      <number>1</number>
+                     </property>
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="tickPosition">
+                      <enum>QSlider::TicksBothSides</enum>
+                     </property>
+                     <property name="tickInterval">
+                      <number>25</number>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                <item row="0" column="0" colspan="2">
+                 <widget class="QGroupBox" name="sync_controller_encoder_box">
+                  <property name="title">
+                   <string>Encoder exponents</string>
+                  </property>
+                  <layout class="QGridLayout" name="gridLayout_44">
+                   <item row="0" column="0">
+                    <widget class="QTableWidget" name="sync_controller_encoder_table">
+                     <property name="toolTip">
+                      <string>LED intensity sequence file</string>
+                     </property>
+                     <property name="rowCount">
+                      <number>4</number>
+                     </property>
+                     <property name="columnCount">
+                      <number>2</number>
+                     </property>
+                     <attribute name="horizontalHeaderStretchLastSection">
+                      <bool>false</bool>
+                     </attribute>
+                     <attribute name="verticalHeaderDefaultSectionSize">
+                      <number>25</number>
+                     </attribute>
+                     <attribute name="verticalHeaderStretchLastSection">
+                      <bool>false</bool>
+                     </attribute>
+                     <row/>
+                     <row/>
+                     <row/>
+                     <row/>
+                     <column>
+                      <property name="text">
+                       <string>1</string>
+                      </property>
+                      <property name="toolTip">
+                       <string>The LED channel # for each step.</string>
+                      </property>
+                      <property name="font">
+                       <font>
+                        <pointsize>10</pointsize>
+                       </font>
+                      </property>
+                     </column>
+                     <column>
+                      <property name="text">
+                       <string>2</string>
+                      </property>
+                     </column>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                <item row="3" column="0">
+                 <widget class="QPushButton" name="sync_controller_download_button">
                   <property name="text">
-                   <string>Description for serial connection protocol</string>
+                   <string>Download from Controller</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="1">
+                 <widget class="QPushButton" name="sync_controller_upload_button">
+                  <property name="text">
+                   <string>Upload to Controller</string>
                   </property>
                  </widget>
                 </item>
@@ -3426,7 +3599,7 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>436</width>
+             <width>589</width>
              <height>1011</height>
             </rect>
            </property>
@@ -4716,6 +4889,7 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
         </item>
        </layout>
       </widget>
+
       <widget class="QWidget" name="calibration_tab">
        <attribute name="title">
         <string>Calibration</string>
@@ -4763,6 +4937,23 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="anomaloscope_tab">
+       <attribute name="title">
+        <string>Anomaloscope</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_46">
+        <item row="0" column="0">
+            <widget class="QPushButton" name="anomaloscope_start_button">
+            <property name="toolTip">
+                <string>Anomaloscope Matching Task</string>
+            </property>
+            <property name="text">
+                <string>Start Anomaloscope Matching Task</string>
+            </property>
+            </widget>
+        </item>
+       </layout>
+      </widget>
       <widget class="QWidget" name="about_tab">
        <attribute name="title">
         <string>About</string>
@@ -4786,7 +4977,7 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>485</width>
+     <width>650</width>
      <height>21</height>
     </rect>
    </property>
@@ -4800,6 +4991,20 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
     <property name="toolTipsVisible">
      <bool>true</bool>
     </property>
+    <widget class="QMenu" name="menu_connection_drivers">
+     <property name="title">
+      <string>Drivers</string>
+     </property>
+     <addaction name="menu_connection_drivers_disconnect"/>
+    </widget>
+    <widget class="QMenu" name="menu_connection_controllers">
+     <property name="title">
+      <string>Controllers</string>
+     </property>
+     <addaction name="menu_connection_controllers_disconnect"/>
+    </widget>
+    <addaction name="menu_connection_drivers"/>
+    <addaction name="menu_connection_controllers"/>
     <addaction name="menu_connection_disconnect"/>
     <addaction name="separator"/>
     <addaction name="menu_connection_search"/>
@@ -4843,13 +5048,13 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
   <widget class="QStatusBar" name="statusbar"/>
   <action name="menu_connection_disconnect">
    <property name="checkable">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="checked">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="text">
-    <string>Disconnect</string>
+    <string>Disconnect All</string>
    </property>
    <property name="toolTip">
     <string>Disconnect from active LED driver.</string>
@@ -4967,6 +5172,28 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
     <string>Toggle configuration tab lock</string>
    </property>
   </action>
+  <action name="menu_connection_drivers_disconnect">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Disconnect</string>
+   </property>
+  </action>
+  <action name="menu_connection_controllers_disconnect">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Disconnect</string>
+   </property>
+  </action>
  </widget>
  <resources>
   <include location="resources.qrc"/>
@@ -4990,23 +5217,23 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
   </property>
  </designerdata>
  <buttongroups>
-  <buttongroup name="configure_indication_group"/>
-  <buttongroup name="sync_digital_trigger_button_group"/>
-  <buttongroup name="configure_pushbutton_LED_button_group"/>
-  <buttongroup name="sync_analog_board2_channel_button_group"/>
-  <buttongroup name="sync_digital_trigger_low_channel_button_group"/>
-  <buttongroup name="sync_digital_trigger_high_channel_button_group"/>
+  <buttongroup name="sync_confocal_scan_mode_button_group"/>
   <buttongroup name="sync_confocal_line_analog_polarity_button_group"/>
-  <buttongroup name="sync_confocal_line_digital_polarity_button_group"/>
-  <buttongroup name="sync_confocal_shutter_polarity_button_group"/>
-  <buttongroup name="main_toggle_control_group"/>
-  <buttongroup name="sync_analog_board3_channel_button_group"/>
-  <buttongroup name="sync_confocal_line_input_button_group"/>
-  <buttongroup name="sync_confocal_scanning_LED_channel_button_group"/>
+  <buttongroup name="sync_digital_trigger_high_channel_button_group"/>
   <buttongroup name="main_intensity_button_group"/>
   <buttongroup name="sync_analog_board1_channel_button_group"/>
+  <buttongroup name="sync_confocal_shutter_polarity_button_group"/>
+  <buttongroup name="sync_confocal_line_digital_polarity_button_group"/>
   <buttongroup name="sync_confocal_standby_LED_channel_button_group"/>
+  <buttongroup name="main_toggle_control_group"/>
+  <buttongroup name="configure_pushbutton_LED_button_group"/>
+  <buttongroup name="sync_confocal_scanning_LED_channel_button_group"/>
+  <buttongroup name="sync_digital_trigger_button_group"/>
   <buttongroup name="main_channel_button_group"/>
-  <buttongroup name="sync_confocal_scan_mode_button_group"/>
+  <buttongroup name="sync_analog_board2_channel_button_group"/>
+  <buttongroup name="sync_digital_trigger_low_channel_button_group"/>
+  <buttongroup name="configure_indication_group"/>
+  <buttongroup name="sync_analog_board3_channel_button_group"/>
+  <buttongroup name="sync_confocal_line_input_button_group"/>
  </buttongroups>
 </ui>

@@ -20,6 +20,8 @@ debug = False
 class statusWindow(QtWidgets.QWidget):
     # Need to initialize outside of init() https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
     status_signal = QtCore.pyqtSignal(object)
+    # Need to initialize outside of init() https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
+    controller_status_signal = QtCore.pyqtSignal(object)
 
     def __init__(self, app, main_window):
         self.app = app
@@ -41,6 +43,14 @@ class statusWindow(QtWidgets.QWidget):
         self.status_emit = self.status_signal.emit  # Initialize instance of function so it can be explicitly disconnected later
         self.gui.status_signal.connect(self.status_emit)  # Connect mainWindow status signal to dialog status signal
         self.status_signal.connect(self.updateStatus)  # Update status when new status signal is received
+
+        # Initialize instance of function so it can be explicitly disconnected later
+        self.controller_status_emit = self.controller_status_signal.emit
+        # Connect mainWindow status signal to dialog status signal
+        self.gui.controller_status_signal.connect(self.controller_status_emit)
+        # Update status when new status signal is received
+        self.controller_status_signal.connect(self.controllerUpdateStatus)
+
         self.plot_timeline = guiMapper.TimeLine(loopCount=0, interval=100)  # Animation object for animating plots
 
         # Initialize plot data
@@ -149,6 +159,9 @@ class statusWindow(QtWidgets.QWidget):
             else:  # Calculate running average of measured values per update
                 self.status_dict[key] += status[key]
         self.status_dict["Count"] += 1
+
+    def controllerUpdateStatus(self, status):
+        pass
 
     def updateStatusWindow(self):
         # Roudn to sig fig - https://stackoverflow.com/questions/3410976/how-to-round-a-number-to-significant-figures-in-python
@@ -284,6 +297,24 @@ class statusWindow(QtWidgets.QWidget):
                         status_plot.setYRange(0, max_value, padding=0)
                         status_plot.plot(x_values, y_list, pen=pg.mkPen(
                             color_list[board-1], width=1), connect="finite", clear=clear_graph)
+        # Update controller status
+        for key in ["Button", "Switch", "LED"]:
+            for side in ["Left", "Right"]:
+                value = self.gui.controller_status_dict[key][side] > 0
+                widget = eval("self.controller_" + side.lower() + "_" + key.lower() + "_button")
+                widget.setStyleSheet(
+                    "background-color: lightgreen; color: black;" if value else "background-color: lightGray; color: black;")
+                widget.setChecked(value)
+        self.controller_builtin_led_button.setStyleSheet(
+            "background-color: lightgreen; color: black;" if self.gui.controller_status_dict["Built-in"] else "background-color: lightGray; color: black;")
+        self.controller_builtin_led_button.setChecked(self.gui.controller_status_dict["Built-in"])
+        for side in ["Left", "Right"]:
+            value = self.gui.controller_status_dict["Encoder"][side] % 256
+            widget = eval("self.controller_" + side.lower() + "_dial")
+            widget.setValue(value)
+        self.text_controller_name_label.setText("Name: " + self.gui.controller_status_dict["Name"])
+        self.text_controller_serial_label.setText("Serial: " + self.gui.controller_status_dict["Serial"])
+        self.text_controller_com_port_label.setText("COM Port: " + self.gui.controller_status_dict["COM Port"])
 
     def updateLabel(self, key, value, unit=""):
         prefix = key
@@ -300,9 +331,11 @@ class statusWindow(QtWidgets.QWidget):
 
         # Disconnect class instance from MainWindow signals
         self.gui.status_signal.disconnect(self.status_emit)
+        self.gui.controller_status_signal.disconnect(self.controller_status_emit)
 
         # Disconnect internal signals
         self.status_signal.disconnect()  # Connect mainWindow status signal to dialog status signal
+        self.controller_status_signal.disconnect()
 
         # Explicity delete timeline
         self.plot_timeline.deleteLater()
