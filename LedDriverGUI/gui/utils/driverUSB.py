@@ -5,6 +5,8 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtSerialPort import QSerialPortInfo, QSerialPort
 import inspect
 from collections import OrderedDict
+
+from networkx import overall_reciprocity
 from .. import guiConfigIO as fileIO
 import time
 import struct
@@ -491,7 +493,7 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
     def downloadStream(self, message):
         pass
 
-    def updateStatus(self, reply=None, force_tx=False):
+    def updateStatus(self, reply=None, force_tx=False, override=False):
         unpack_string = "<"
         # String for LED info
         for byte in ["B", "H", "H"]:
@@ -569,6 +571,10 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
                                 led_dict["pwm"][board - 1] = 65535
                                 led_dict["current"][board-1] = round((self.gui.getValue(
                                     self.gui.main_model["Intensity"]) / dial_max) * self.gui.getAdcCurrentLimit(board, led_number) * 655.35)
+                            elif override:  # Override mode
+                                for key in ["Channel", "PWM", "Current"]:
+                                    for board in range(1, self.gui.N_BOARDS+1):
+                                        led_dict[key.lower()][board-1] = self.gui.status_dict[key + str(board)]
                             else:  # Off mode or sync mode
                                 led_dict["current"][board-1] = 0
                                 led_dict["pwm"][board-1] = 0
