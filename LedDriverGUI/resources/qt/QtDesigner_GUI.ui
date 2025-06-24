@@ -4952,6 +4952,16 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
             </property>
             </widget>
         </item>
+        <item row="1" column="0">
+            <widget class="QPushButton" name="test_bens_code_button">
+            <property name="toolTip">
+                <string>Ben Test Status Packet</string>
+            </property>
+            <property name="text">
+                <string>Status Packet</string>
+            </property>
+            </widget>
+        </item>
        </layout>
       </widget>
       <widget class="QWidget" name="about_tab">

@@ -6,7 +6,6 @@ from PyQt5.QtSerialPort import QSerialPortInfo, QSerialPort
 import inspect
 from collections import OrderedDict
 
-from networkx import overall_reciprocity
 from .. import guiConfigIO as fileIO
 import time
 import struct

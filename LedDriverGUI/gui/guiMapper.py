@@ -2,6 +2,7 @@ from collections import OrderedDict
 from . import guiSequence as seq
 from . import guiConfigIO as fileIO
 from .calibration.lutCalibration import runLUTCalibration, runLUTCheck, runGammaCheck, runSpectralMeasurement
+from .windows.anomaloscopeWindow import runSequenceLoop
 from PyQt5 import QtGui, QtCore
 
 
@@ -303,6 +304,8 @@ def initializeEvents(gui):
         gui.measure_bitmasks_button.clicked.connect(lambda: runLUTCheck(gui))
         gui.measure_gamma_button.clicked.connect(lambda: runGammaCheck(gui))
         gui.measure_spectrums_button.clicked.connect(lambda: runSpectralMeasurement(gui))
+
+        gui.test_bens_code_button.clicked.connect(lambda: runSequenceLoop(gui))
 
         sequenceEvents()
 
