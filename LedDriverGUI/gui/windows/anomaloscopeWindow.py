@@ -5,9 +5,6 @@ from collections import OrderedDict
 from .. import guiSequence as seq
 
 
-# Legacy code commented out - replaced with new implementation in testAnomaloscopeSync.py
-
-
 def runTestCycler(gui):
     """Start LED cycling sequence - now redirects to new window implementation."""
     from ...testAnomaloscopeSync import createAnomaloscopeSyncWindow
