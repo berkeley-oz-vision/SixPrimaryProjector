@@ -155,9 +155,9 @@ class AnomaloscopeSyncWindow(QtWidgets.QWidget):
             self.update_status = UpdateStatus(self.gui)
 
             # Connect the signal to the slot
-            self.led_cycler.pwm_update_signal.connect(
-                self.update_status.updatePWMValues
-            )
+            self.led_cycler.pwm_update_signal.connect(lambda d:
+                                                      self.update_status.updatePWMValues(d)
+                                                      )
 
             # Start the LED cycler
             self.led_cycler.start()
