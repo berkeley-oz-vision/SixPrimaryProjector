@@ -24,7 +24,7 @@ class LEDCycler(QThread):
                 pwm_updates = {}
 
                 # Reset all PWM values to 0
-                for board in range(1, self.gui.nBoards() + 1):
+                for board in range(0, self.gui.nBoards()):
                     pwm_updates[f"PWM{board}"] = 0
 
                 # Set current LED PWM to maximum (assuming 12-bit: 4095)
