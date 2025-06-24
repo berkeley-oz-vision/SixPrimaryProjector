@@ -73,7 +73,7 @@ class UpdateStatus:
                 self.gui.status_dict[key] = value
                 print(f"Updating {key} to {value}")
             # Update the driver with new PWM values
-            self.gui.ser.updateStatus()
+            self.gui.ser.updateStatus(force_tx=True, override=True)
 
         finally:
             self._updating = False
