@@ -30,7 +30,7 @@ class LEDCycler(QThread):
                     pwm_updates[f"Current{board}"] = 65535
 
                 # Set current LED PWM to maximum (assuming 12-bit: 65535)
-                board_num = (self.current_led % 3)  # Map to boards 0, 1, 2
+                board_num = (self.current_led % 3) + 1  # Map to boards 1, 2, 3
                 pwm_updates[f"PWM{board_num}"] = 65535
                 self.pwm_update_signal.emit(pwm_updates)
 
