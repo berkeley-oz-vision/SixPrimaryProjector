@@ -13,6 +13,7 @@ from .. import guiMapper
 import copy
 from timeit import default_timer as timer
 import datetime
+from ..utils.path import get_resource_path
 
 PLOT_PADDING = 1.1  # Factor of dark space above and below plot line so that plot line doesn't touch top of widget
 SLEW_TIME = 1e-6  # Time for LED to switch between intensities
@@ -35,7 +36,7 @@ class syncPlotWindow(QtWidgets.QWidget):
         self.window_closed = False
 
         # Set look and feel
-        uic.loadUi(self.gui.resourcePath('Sync_Plot_GUI.ui'), self)
+        uic.loadUi(get_resource_path("LedDriverGUI.resources.qt", 'Sync_Plot_GUI.ui'), self)
 
         # Connect signals
         self.status_emit = self.status_signal.emit  # Function instance saved so it can later be disconnected explicitly
@@ -136,6 +137,8 @@ class syncPlotWindow(QtWidgets.QWidget):
             self.mode = self.gui.getValue(sync_model["Mode"])
         if debug:
             print("Active mode: " + self.mode)
+
+        print(self.gui.state_dict.keys())
         self.main_tab.setTabText(0, self.mode + ": " + self.gui.state_dict[self.mode][0])
         self.main_tab.setTabText(1, self.mode + ": " + self.gui.state_dict[self.mode][1])
 

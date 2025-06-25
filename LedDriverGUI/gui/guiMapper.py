@@ -114,11 +114,18 @@ def initializeSyncModel(gui):
                 "gui.sync_confocal_" + event.lower() + "_constant_config_duration_box")
             sync_model["Confocal"][event]["Sequence"] = ""
 
+    def initializeController():
+        nonlocal gui
+        sync_model["Controller"] = OrderedDict()
+        sync_model["Controller"]["Exponents"] = gui.sync_controller_encoder_table
+        sync_model["Controller"]["Intensity"] = [gui.sync_controller_led_off_slider, gui.sync_controller_led_on_slider]
+
     sync_model = OrderedDict()
     sync_model["Mode"] = gui.sync_toolbox
     initializeDigital()
     initializeAnalog()
     initializeConfocal()
+    initializeController()
 
     return sync_model
 
@@ -148,6 +155,9 @@ def initializeMainModel(gui):
     main_model = OrderedDict()
     main_model["Name"] = gui.main_driver_name_label2
     main_model["Serial"] = gui.main_driver_serial_label2
+    main_model["Controller"] = OrderedDict()
+    main_model["Controller"]["Name"] = gui.main_controller_name_label2
+    main_model["Controller"]["Serial"] = gui.main_controller_serial_label2
     main_model["Channel"] = OrderedDict()
     for board_number in range(1, gui.nBoards() + 1):
         main_model["Channel"]["Board" + str(board_number)] = []

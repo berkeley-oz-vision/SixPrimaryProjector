@@ -13,13 +13,7 @@ import copy
 import sys
 from timeit import default_timer as timer
 import pickle
-from importlib import resources
-
-
-def get_resource_path(path, resource_name):
-    # Access the resources directory using importlib.resources.path
-    with resources.path(path, resource_name) as resource_path:
-        return str(resource_path)  # Convert to string for path use
+from .gui.utils.path import get_resource_path
 
 
 N_STEPS = 4
@@ -119,7 +113,7 @@ class Ui(QtWidgets.QMainWindow):
         self.status_window_list = []
         self.state_dict = OrderedDict(
             [("Digital", ["LOW", "HIGH"]), ("Analog", ["Active", "Active"]), ("Confocal", ["Standby", "Scanning"]),
-             ("Serial", ["Active", "Active"]), ("Custom", ["Active", "Active"])])
+             ("Serial", ["Active", "Active"]), ("Custom", ["Active", "Active"]), ("Controller", ["Active", "Active"])])
 
         # Initialize seq dict and sync list for sync plot
         self.seq_dict = guiMapper.initializeSeqDictionary(self)

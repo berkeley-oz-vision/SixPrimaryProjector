@@ -9,6 +9,7 @@ import pyqtgraph as pg
 from .. import guiMapper
 from .. import guiSequence as seq
 from .. import guiConfigIO as fileIO
+from ..utils.path import get_resource_path
 import copy
 
 N_MEASUREMENTS = 50  # Number of measurements per plot
@@ -31,7 +32,8 @@ class statusWindow(QtWidgets.QWidget):
         self.window_closed = False
 
         # Set look and feel
-        uic.loadUi(self.gui.resourcePath('Status_GUI.ui'), self)
+        uic.loadUi(get_resource_path("LedDriverGUI.resources.qt", 'Status_GUI.ui'), self)
+        # self.gui.resourcePath('Status_GUI.ui'), self))
         if self.gui.menu_view_skins_dark.isChecked():  # Set dark skin if in dark mode since skin is reverted when window is opened.
             self.app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
         else:
@@ -168,7 +170,7 @@ class statusWindow(QtWidgets.QWidget):
         def round_to_n(x, n): return x if x == 0 else round(x, -int(math.floor(math.log10(abs(x)))) + (n - 1))
         count = self.status_dict["Count"]
         for key in ["Name", "COM Port", "Serial"]:
-            self.status_dict[key] = self.gui.status_dict[key]
+            self.status_dict[key] = str(self.gui.status_dict[key])
         if count > 0:
             for key, value in self.status_dict.items():
                 unit = ""
@@ -312,9 +314,9 @@ class statusWindow(QtWidgets.QWidget):
             value = self.gui.controller_status_dict["Encoder"][side] % 256
             widget = eval("self.controller_" + side.lower() + "_dial")
             widget.setValue(value)
-        self.text_controller_name_label.setText("Name: " + self.gui.controller_status_dict["Name"])
-        self.text_controller_serial_label.setText("Serial: " + self.gui.controller_status_dict["Serial"])
-        self.text_controller_com_port_label.setText("COM Port: " + self.gui.controller_status_dict["COM Port"])
+        self.text_controller_name_label.setText("Name: " + str(self.gui.controller_status_dict["Name"]))
+        self.text_controller_serial_label.setText("Serial: " + str(self.gui.controller_status_dict["Serial"]))
+        self.text_controller_com_port_label.setText("COM Port: " + str(self.gui.controller_status_dict["COM Port"]))
 
     def updateLabel(self, key, value, unit=""):
         prefix = key
