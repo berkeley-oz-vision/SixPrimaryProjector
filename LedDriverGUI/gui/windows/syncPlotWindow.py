@@ -138,12 +138,6 @@ class syncPlotWindow(QtWidgets.QWidget):
         if debug:
             print("Active mode: " + self.mode)
 
-        # if self.mode == "Controller":  # If controller mode, disable all tabs
-        #     self.main_tab.setTabEnabled(0, False)
-        #     self.main_tab.setTabEnabled(1, False)
-        #     self.showMessage("Controller mode is not supported in sync plot window.")
-        #     return
-
         self.main_tab.setTabText(0, self.mode + ": " + self.gui.state_dict[self.mode][0])
         self.main_tab.setTabText(1, self.mode + ": " + self.gui.state_dict[self.mode][1])
 
