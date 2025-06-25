@@ -24,7 +24,7 @@ class LEDCycler(QThread):
                 pwm_updates = {}
 
                 # Reset all PWM values to 0
-                for board in range(0, self.gui.nBoards()):
+                for board in range(1, self.gui.nBoards() + 1):
                     pwm_updates[f"Channel{board}"] = board
                     pwm_updates[f"PWM{board}"] = 0  # reset to 0
                     pwm_updates[f"Current{board}"] = 65535
@@ -178,7 +178,7 @@ class AnomaloscopeSyncWindow(QtWidgets.QWidget):
 
             # Reset all PWM values to 0
             pwm_updates = {}
-            for board in range(0, self.gui.nBoards()):
+            for board in range(1, self.gui.nBoards() + 1):
                 pwm_updates[f"PWM{board}"] = 0
 
             # Update status with all LEDs off
