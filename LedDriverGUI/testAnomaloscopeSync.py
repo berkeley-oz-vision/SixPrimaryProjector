@@ -25,16 +25,16 @@ class LEDCycler(QThread):
 
                 # Reset all PWM values to 0
                 for board in range(0, self.gui.nBoards()):
-                    pwm_updates[f"PWM{board}"] = 0
+                    pwm_updates[f"Channel{board}"] = board
+                    pwm_updates[f"PWM{board}"] = 0  # reset to 0
+                    pwm_updates[f"Current{board}"] = 65535
 
-                # Set current LED PWM to maximum (assuming 12-bit: 4095)
+                # Set current LED PWM to maximum (assuming 12-bit: 65535)
                 board_num = (self.current_led % 3)  # Map to boards 0, 1, 2
-                pwm_updates[f"PWM{board_num}"] = 4095
-
-                # Emit signal with PWM updates
+                pwm_updates[f"PWM{board_num}"] = 65535
                 self.pwm_update_signal.emit(pwm_updates)
 
-                print(f"LED {self.current_led} (Board {board_num}) activated with PWM 4095")
+                print(f"LED {self.current_led} (Board {board_num}) activated with PWM 65535")
 
                 # Move to next LED (cycle through 0, 1, 2)
                 self.current_led = (self.current_led + 1) % 3
