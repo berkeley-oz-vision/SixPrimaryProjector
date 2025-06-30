@@ -64,7 +64,9 @@ class UpdateStatus:
         Updates gui.status_dict and communicates with the driver.
         """
         if self._updating:
-            return  # Prevent recursion
+            # Queue this update to be processed after current one completes
+            QtCore.QTimer.singleShot(10, self.updatePWMValues)
+            return
 
         self._updating = True
         try:

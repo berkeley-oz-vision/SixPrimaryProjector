@@ -129,6 +129,8 @@ class AnomaloscopeController(QtCore.QObject):
         self.current_yellow_luminance = 0.0  # 0-100%
         self.current_red_green_ratio = 50.0  # 0-100 (0=all red, 100=all green)
 
+        self._updating = False
+
     def start_monitoring(self):
         """Start monitoring controller inputs."""
         self.monitoring = True
@@ -195,6 +197,11 @@ class AnomaloscopeController(QtCore.QObject):
 
     def update_leds(self):
         """Update physical LED outputs based on current values."""
+        if self._updating:
+            # Queue this update to be processed after current one completes
+            QtCore.QTimer.singleShot(10, self.update_leds)
+            return
+
         # Calculate LED intensities
         yellow_pwm = int((self.current_yellow_luminance / 100.0) * 65535)
 
@@ -210,7 +217,7 @@ class AnomaloscopeController(QtCore.QObject):
 
         # Reset all channels to 0 first
         for board in range(1, self.gui.nBoards() + 1):
-            pwm_updates[f"Channel{board}"] = 0
+            pwm_updates[f"Channel{board}"] = board
             pwm_updates[f"PWM{board}"] = 0
             pwm_updates[f"Current{board}"] = 65535
 
@@ -223,12 +230,17 @@ class AnomaloscopeController(QtCore.QObject):
         pwm_updates[f"PWM{green_board}"] = green_pwm
         pwm_updates[f"PWM{yellow_board}"] = yellow_pwm
 
-        # Update the LEDs
-        for key, value in pwm_updates.items():
-            self.gui.status_dict[key] = value
+        self._updating = True
+        try:
+            # Update the status dictionary
+            for key, value in pwm_updates.items():
+                self.gui.status_dict[key] = value
+                print(f"Updating {key} to {value}")
+            # Update the driver with new PWM values
+            self.gui.ser.updateStatus(force_tx=True, override=True)
 
-        # Send update to hardware
-        self.gui.ser.updateStatus(force_tx=True, override=True)
+        finally:
+            self._updating = False
 
     def accept_match(self):
         """Handle match acceptance (button press)."""
@@ -278,9 +290,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Configuration - Abstract LED mapping
         self.led_config = {
-            'red_board': 1,      # Board controlling red LED
-            'green_board': 2,    # Board controlling green LED
-            'yellow_board': 3    # Board controlling yellow LED
+            'red_board': 3,      # Board controlling red LED
+            'green_board': 1,    # Board controlling green LED
+            'yellow_board': 2    # Board controlling yellow LED
         }
 
         # Trial management
