@@ -56,6 +56,9 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         width = self.width()
         height = self.height()
 
+        # Fill the entire window with black background
+        painter.fillRect(0, 0, width, height, QtGui.QColor(0, 0, 0))
+
         # Calculate the center and radius for the circle
         center_x = width // 2
         center_y = height // 2
