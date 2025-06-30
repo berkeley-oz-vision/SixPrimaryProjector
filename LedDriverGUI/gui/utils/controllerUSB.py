@@ -12,7 +12,7 @@ from .. import guiMapper
 from timeit import default_timer as timer
 import traceback
 import pyautogui
-
+import re
 
 # Teensy USB serial microcontroller program id data:
 VENDOR_ID = 0x239A

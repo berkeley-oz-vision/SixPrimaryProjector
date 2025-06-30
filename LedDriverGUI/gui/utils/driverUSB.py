@@ -559,8 +559,9 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
                     dial_max = self.gui.main_model["Intensity"].maximum()
                     for board in range(1, self.gui.nBoards()+1):
                         led_dict["channel"][board-1] = widgetIndex(self.gui.main_model["Channel"]["Board" + str(board)])
-                        if led_dict["channel"][board-1] is not None:
-                            led_number = led_dict["channel"][board-1]+1
+                        if led_dict["channel"][board-1] is not None or override:
+                            if not override:
+                                led_number = led_dict["channel"][board-1]+1
                             if mode == 1:  # PWM mode
                                 led_dict["pwm"][board -
                                                 1] = round((self.gui.getValue(self.gui.main_model["Intensity"]) / dial_max) * 65535)
@@ -572,7 +573,7 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
                                     self.gui.main_model["Intensity"]) / dial_max) * self.gui.getAdcCurrentLimit(board, led_number) * 655.35)
                             elif override:  # Override mode
                                 for key in ["Channel", "PWM", "Current"]:
-                                    for board in range(1, self.gui.N_BOARDS+1):
+                                    for board in range(1, self.gui.nBoards()+1):
                                         led_dict[key.lower()][board-1] = self.gui.status_dict[key + str(board)]
                             else:  # Off mode or sync mode
                                 led_dict["current"][board-1] = 0
