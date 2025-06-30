@@ -132,6 +132,15 @@ class AnomaloscopeController(QtCore.QObject):
 
         self._updating = False
 
+        # Rate limiting for LED updates (30Hz = ~33.33ms interval)
+        self.update_rate_hz = 30.0
+        self.update_interval_ms = int(1000.0 / self.update_rate_hz)
+        self.last_update_time = 0
+        self.pending_led_update = False
+        self.update_timer = QtCore.QTimer()
+        self.update_timer.timeout.connect(self.process_pending_led_update)
+        self.update_timer.setSingleShot(True)
+
     def start_monitoring(self):
         """Start monitoring controller inputs."""
         self.monitoring = True
@@ -140,6 +149,7 @@ class AnomaloscopeController(QtCore.QObject):
     def stop_monitoring(self):
         """Stop monitoring controller inputs."""
         self.monitoring = False
+        self.update_timer.stop()
         try:
             self.gui.controller_status_signal.disconnect(self.update_controller_status)
         except:
@@ -190,11 +200,34 @@ class AnomaloscopeController(QtCore.QObject):
         right_value = self.previous_encoder_values["Right"]
         self.current_red_green_ratio = (right_value / 255.0) * 100.0
 
-        # Update physical LEDs
-        self.update_leds()
+        # Schedule LED update with rate limiting
+        self.schedule_led_update()
 
         # Emit values changed signal
         self.values_changed_signal.emit(self.get_current_values())
+
+    def schedule_led_update(self):
+        """Schedule an LED update with rate limiting."""
+        current_time = QtCore.QDateTime.currentMSecsSinceEpoch()
+
+        # If we have a pending update, just mark that we need another one
+        if self.pending_led_update:
+            return
+
+        # If enough time has passed since last update, update immediately
+        if current_time - self.last_update_time >= self.update_interval_ms:
+            self.process_pending_led_update()
+        else:
+            # Schedule update for later
+            self.pending_led_update = True
+            remaining_time = self.update_interval_ms - (current_time - self.last_update_time)
+            self.update_timer.start(remaining_time)
+
+    def process_pending_led_update(self):
+        """Process the pending LED update."""
+        self.pending_led_update = False
+        self.last_update_time = QtCore.QDateTime.currentMSecsSinceEpoch()
+        self.update_leds()
 
     def update_leds(self):
         """Update physical LED outputs based on current values."""
