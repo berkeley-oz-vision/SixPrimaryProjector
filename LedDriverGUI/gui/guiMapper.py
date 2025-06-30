@@ -2,7 +2,7 @@ from collections import OrderedDict
 from . import guiSequence as seq
 from . import guiConfigIO as fileIO
 from .calibration.lutCalibration import runLUTCalibration, runLUTCheck, runGammaCheck, runSpectralMeasurement
-from .windows.anomaloscopeWindow import runTestCycler, runControllerWindow
+from .windows.anomaloscopeWindow import runTestCycler, runControllerWindow, runAnomaloscopeExperiment
 from PyQt5 import QtGui, QtCore
 
 
@@ -317,7 +317,7 @@ def initializeEvents(gui):
         gui.measure_spectrums_button.clicked.connect(lambda: runSpectralMeasurement(gui))
 
         gui.test_bens_code_button.clicked.connect(lambda: runTestCycler(gui))
-        gui.anomaloscope_start_button.clicked.connect(lambda: runControllerWindow(gui))
+        gui.anomaloscope_start_button.clicked.connect(lambda: runAnomaloscopeExperiment(gui))
         sequenceEvents()
 
     menuEvents()
