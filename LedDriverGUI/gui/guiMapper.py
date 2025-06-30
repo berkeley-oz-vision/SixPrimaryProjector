@@ -2,7 +2,7 @@ from collections import OrderedDict
 from . import guiSequence as seq
 from . import guiConfigIO as fileIO
 from .calibration.lutCalibration import runLUTCalibration, runLUTCheck, runGammaCheck, runSpectralMeasurement
-from .windows.anomaloscopeWindow import runTestCycler
+from .windows.anomaloscopeWindow import runTestCycler, runControllerWindow
 from PyQt5 import QtGui, QtCore
 
 
@@ -177,6 +177,7 @@ def initializeEvents(gui):
 #        gui.menu_connection.aboutToShow.connect(lambda: gui.ser.getDriverPort()) #Search for all available LED drivers on USB ports
         gui.menu_view_windows_status.triggered.connect(gui.createStatusWindow)
         gui.menu_view_windows_sync_plot.triggered.connect(gui.createSyncPlotWindow)
+        gui.menu_view_anomaloscope.triggered.connect(gui.createControllerWindow)
 
         # Dark/light mode view
         gui.menu_view_skins_dark.triggered.connect(lambda: gui.toggleSkin("dark"))
@@ -316,7 +317,7 @@ def initializeEvents(gui):
         gui.measure_spectrums_button.clicked.connect(lambda: runSpectralMeasurement(gui))
 
         gui.test_bens_code_button.clicked.connect(lambda: runTestCycler(gui))
-
+        gui.anomaloscope_start_button.clicked.connect(lambda: runControllerWindow(gui))
         sequenceEvents()
 
     menuEvents()

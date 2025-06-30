@@ -19,3 +19,10 @@ def runTestCycler(gui):
 
     print("Anomaloscope sync window created")
     return window
+
+
+def runControllerWindow(gui):
+    """Create and show a new controller status window."""
+    # Create and show the controller window
+    gui.createControllerWindow()
+    print("Controller window created")

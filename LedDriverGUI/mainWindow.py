@@ -6,7 +6,7 @@ from collections import OrderedDict
 from .gui import guiMapper
 from .gui import guiSequence as seq
 from .gui.utils import driverUSB, controllerUSB
-from .gui.windows import statusWindow, syncPlotWindow
+from .gui.windows import statusWindow, syncPlotWindow, controllerWindow
 
 import os
 import copy
@@ -111,6 +111,7 @@ class Ui(QtWidgets.QMainWindow):
                                                                                  ("Control", 0)])
 
         self.status_window_list = []
+        self.controller_window_list = []  # Add controller window list
         self.state_dict = OrderedDict(
             [("Digital", ["LOW", "HIGH"]), ("Analog", ["Active", "Active"]), ("Confocal", ["Standby", "Scanning"]),
              ("Serial", ["Active", "Active"]), ("Custom", ["Active", "Active"]), ("Controller", ["Active", "Active"])])
@@ -236,6 +237,18 @@ class Ui(QtWidgets.QMainWindow):
         else:
             self.sync_window_list.append(syncPlotWindow.syncPlotWindow(self.app, self))
             self.sync_window_list[-1].show()
+
+    def createControllerWindow(self):
+        """Create and show a new controller window."""
+        # See if there is a closed instance to overwrite. If not, create a new instance
+        for index, instance in enumerate(self.controller_window_list):
+            if instance.windowClosed():
+                self.controller_window_list[index] = controllerWindow.controllerWindow(self.app, self)
+                self.controller_window_list[index].show()
+                break
+        else:
+            self.controller_window_list.append(controllerWindow.controllerWindow(self.app, self))
+            self.controller_window_list[-1].show()
 
     def updateSerialNumber(self, serial_number, controller_num=False):
         if controller_num:

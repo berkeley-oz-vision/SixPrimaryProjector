@@ -5036,6 +5036,7 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
      </property>
      <addaction name="menu_view_windows_status"/>
      <addaction name="menu_view_windows_sync_plot"/>
+     <addaction name="menu_view_anomaloscope"/>
     </widget>
     <widget class="QMenu" name="menu_view_lock">
      <property name="toolTip">
@@ -5139,6 +5140,11 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
   <action name="menu_view_windows_sync_plot">
    <property name="text">
     <string>Sync plot</string>
+   </property>
+  </action>
+  <action name="menu_view_anomaloscope">
+   <property name="text">
+    <string>Anomaloscope</string>
    </property>
   </action>
   <action name="menu_connection_search">

@@ -484,19 +484,27 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
 ######################################################################################################################################################################################################################################
 
     def controllerChanged(self, dict):
-        # Demo code that turns on the button LED when that button is pressed, and turns on the built-in LED when either encoder knob is pressed
+        # Enhanced controller change handler that can be used for real-time LED control
         leds = [0] * 3
         toggle_leds = False
         encoder_press = False
+
+        # Handle button LED feedback
         for index, side in enumerate(["Left", "Right"]):
             leds[index] = self.gui.controller_status_dict["Button"][side] > 0
             if leds[index] != self.gui.controller_status_dict["LED"][side]:
                 toggle_leds = True
 
+        # Handle encoder switch for built-in LED
         if self.gui.controller_status_dict["Switch"]["Left"] > 0 or self.gui.controller_status_dict["Switch"]["Right"] > 0:
             encoder_press = True
         if encoder_press != self.gui.controller_status_dict["Built-in"]:
             leds[2] = encoder_press
             toggle_leds = True
+
         if toggle_leds:
-            self.gui.controller.setLed(leds)
+            self.setLed(leds)
+
+        # The controller status signal is already emitted in updateStatus method
+        # which will trigger any connected controller windows to update their displays
+        # and handle encoder-to-LED mapping automatically
