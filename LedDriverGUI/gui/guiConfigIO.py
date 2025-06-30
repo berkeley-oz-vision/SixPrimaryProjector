@@ -550,3 +550,114 @@ def showMessage(gui, text):
     gui.stopSplash()
     gui.message_box.setText(text)
     gui.message_box.exec()
+
+########################################################################################################################################################################################
+
+
+def bytesToControllerConfig(byte_array, gui):
+    start_index = 0
+    index = 0
+
+    # Verify checksum of config file
+    # https://stackoverflow.com/questions/44611057/checksum-generation-from-sum-of-bits-in-python
+    checksum = (sum(byte_array)) & 0xFF
+    if checksum == 0:
+        # Get driver name - ends with NULL
+        while int(byte_array[index]) != 0:
+            index += 1
+        gui.controller_status_dict["Name"] = byte_array[start_index:index].decode().rstrip()
+        gui.main_model["Controller"]["Name"].setText(str(gui.controller_status_dict["Name"]))
+
+        # Get led names - end with NULL
+        for side in ["Left Name", "Right Name"]:
+            index += 1
+            start_index = index
+            while int(byte_array[index]) != 0:
+                index += 1
+            gui.controller_status_dict[side] = byte_array[start_index:index].decode().rstrip()
+
+        index += 1
+        unpack_string = "<"
+        for _ in gui.controller_status_dict["Left Rates"]:
+            unpack_string += 'f'
+        for _ in gui.controller_status_dict["Right Rates"]:
+            unpack_string += 'f'
+        unpack_string += "BBBB"
+        # Parse byte array values: https://docs.python.org/3/library/struct.html#struct-alignment
+        config_values = struct.unpack(unpack_string, byte_array[index:])
+        config_values_index = 0
+
+        # Get knob_rates
+        for side in [gui.controller_status_dict["Left Rates"], gui.controller_status_dict["Right Rates"]]:
+            for index, _ in enumerate(side):
+                side[index] = config_values[config_values_index]
+                config_values_index += 1
+
+        gui.controller_status_dict["LED Off"] = gui.setValue(
+            gui.sync_model["Controller"]["Intensity"][0], config_values[config_values_index])
+        gui.controller_status_dict["LED On"] = gui.setValue(
+            gui.sync_model["Controller"]["Intensity"][1], config_values[config_values_index+1])
+        gui.controller_status_dict["Interval"] = config_values[config_values_index + 1]
+
+        # Populate sync table
+        widget = gui.sync_model["Controller"]["Exponents"]
+        widget.setHorizontalHeaderLabels([gui.controller_status_dict["Left Name"],
+                                         gui.controller_status_dict["Right Name"]])
+
+        for column, side in enumerate(["Left Rates", "Right Rates"]):
+            for row in range(len(gui.controller_status_dict[side])):
+                rate = gui.controller_status_dict[side][row] - 1
+                rate = float(f"{rate:.{3}g}")
+                rate += 1
+                item = QtWidgets.QTableWidgetItem(str(rate))
+                widget.setItem(row, column, item)
+
+        if not gui.controller.initializing_connection:
+            showMessage(gui, "Controller configuration file was successfully downloaded.")
+    else:
+        showMessage(gui, "Error: Controller config file had invalid checksum: " + str(checksum) + ". Upload aborted.")
+
+
+def controllerConfigToBytes(gui):
+    config_values = [None] * (2*4+2+1)
+
+    byte_array = bytearray()  # Initialize empty byte array
+
+    # Add string with right padding of spaces for max length of QLineEdit
+    byte_array.extend(gui.controller_status_dict["Name"].ljust(
+        gui.config_model["Driver name"].maxLength(), " ").encode())
+    byte_array.append(0)
+
+    # Controller side names
+    for side in ["Left Name", "Right Name"]:
+        byte_array.extend(gui.controller_status_dict[side].ljust(
+            gui.config_model["Driver name"].maxLength(), " ").encode())
+        byte_array.append(0)
+
+    pack_str = "<"
+    index = 0
+
+    # Controller exponent rates
+    for side in ["Left Rates", "Right Rates"]:
+        for rate in gui.controller_status_dict[side]:
+            config_values[index] = rate
+            pack_str += 'f'
+            index += 1
+
+    # LED intensities
+    for i in range(2):
+        config_values[index+i] = gui.getValue(gui.sync_model["Controller"]["Intensity"][i])
+        pack_str += 'B'
+
+    config_values[index+2] = gui.controller_status_dict["Interval"]
+    pack_str += 'B'
+
+    byte_array.extend(struct.pack(pack_str, *config_values))
+    # https://stackoverflow.com/questions/44611057/checksum-generation-from-sum-of-bits-in-python
+    checksum = (sum(byte_array)) & 0xFF
+    checksum = 256 - checksum
+    if (checksum == 256):
+        checksum = 0
+    byte_array.append(checksum)
+
+    return byte_array
