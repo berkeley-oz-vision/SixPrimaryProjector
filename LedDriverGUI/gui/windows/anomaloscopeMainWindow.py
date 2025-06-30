@@ -4,6 +4,7 @@ import csv
 from collections import OrderedDict
 from PyQt5.QtCore import pyqtSignal
 from PyQt5 import QtGui, QtCore, QtWidgets
+from .bipartiteFieldWindow import BipartiteFieldManager
 
 
 class TrialManager:
@@ -298,6 +299,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         # Trial management
         self.trial_manager = TrialManager()
         self.controller_manager = AnomaloscopeController(self.gui, self.led_config)
+        self.bipartite_manager = BipartiteFieldManager()
 
         # Experiment state
         self.experiment_active = False
@@ -429,6 +431,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         # Start controller monitoring
         self.controller_manager.start_monitoring()
 
+        # Create bipartite field window on second screen
+        self.bipartite_manager.createBipartiteWindow()
+
         # Start first trial
         self.startNextTrial()
 
@@ -503,6 +508,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.experiment_active = False
         self.controller_manager.stop_monitoring()
 
+        # Close bipartite field window
+        self.bipartite_manager.closeWindow()
+
         # Reset UI
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
@@ -549,6 +557,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
                 return
 
         self.controller_manager.cleanup()
+        self.bipartite_manager.closeWindow()
         self.window_closed = True
         event.accept()
 
