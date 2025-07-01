@@ -5,6 +5,7 @@ from collections import OrderedDict
 from PyQt5.QtCore import pyqtSignal
 from PyQt5 import QtGui, QtCore, QtWidgets
 from .bipartiteFieldWindow import BipartiteFieldManager
+import random
 
 
 class TrialManager:
@@ -125,10 +126,21 @@ class AnomaloscopeController(QtCore.QObject):
         self.monitoring = False
         self.previous_encoder_values = {"Left": 0, "Right": 0}
         self.previous_button_states = {"Left": False, "Right": False}
+        self.previous_switch_states = {"Left": False, "Right": False}
 
-        # Current LED values
-        self.current_yellow_luminance = 0.0  # 0-100%
+        # Store encoder positions for delta calculation
+        self.encoder_positions = {"Left": 0, "Right": 0}
+
+        # Current LED values (0-100%)
+        self.current_yellow_luminance = 50.0  # 0-100%
         self.current_red_green_ratio = 50.0  # 0-100 (0=all red, 100=all green)
+
+        # Rate multipliers for encoder sensitivity
+        self.rates = [1, 5, 10, 50, 100, 500, 1000]
+        self.current_rate_index = 0
+
+        # Track if encoders have been initialized
+        self.encoders_initialized = False
 
         self._updating = False
 
@@ -161,11 +173,56 @@ class AnomaloscopeController(QtCore.QObject):
         self.current_red_green_ratio = 50.0
         self.update_leds()
 
+    def setStartingValuesSame(self):
+        """Set both encoders to the same starting value (128)."""
+        self.previous_encoder_values = {"Left": 128, "Right": 128}
+        self.encoder_positions = {"Left": 128, "Right": 128}
+        self.current_yellow_luminance = 50.0
+        self.current_red_green_ratio = 50.0
+        self.encoders_initialized = True
+        self.update_leds()
+        print("Starting values set to same (128)")
+
+    def setStartingValuesRandom(self):
+        """Set encoders to random starting values."""
+        left_start = random.randint(0, 255)
+        right_start = random.randint(0, 255)
+        self.previous_encoder_values = {"Left": left_start, "Right": right_start}
+        self.encoder_positions = {"Left": left_start, "Right": right_start}
+        self.current_yellow_luminance = random.uniform(0, 100)
+        self.current_red_green_ratio = random.uniform(0, 100)
+        self.encoders_initialized = True
+        self.update_leds()
+        print(f"Starting values set to random: Left={left_start}, Right={right_start}")
+
+    def cycleRate(self):
+        """Cycle through rate multipliers."""
+        self.current_rate_index = (self.current_rate_index + 1) % len(self.rates)
+        current_rate = self.rates[self.current_rate_index]
+        print(f"Rate changed to {current_rate}x")
+        # Emit signal to update UI
+        self.values_changed_signal.emit(self.get_current_values())
+        return current_rate
+
+    def getCurrentRate(self):
+        """Get current rate multiplier."""
+        return self.rates[self.current_rate_index]
+
     @QtCore.pyqtSlot(dict)
     def update_controller_status(self, controller_status):
         """Update controller status and handle input changes."""
         if not self.monitoring:
             return
+
+        # Handle switch presses for rate cycling
+        for side in ["Left", "Right"]:
+            switch_pressed = controller_status["Switch"][side] > 0
+            was_pressed = self.previous_switch_states[side]
+            self.previous_switch_states[side] = switch_pressed
+
+            # Detect switch press (rising edge)
+            if switch_pressed and not was_pressed:
+                self.cycleRate()
 
         # Check for encoder changes
         encoder_changed = False
@@ -191,14 +248,51 @@ class AnomaloscopeController(QtCore.QObject):
                 break
 
     def update_from_encoders(self):
-        """Update LED values based on encoder positions."""
-        # Left encoder controls yellow luminance (0-100%)
-        left_value = self.previous_encoder_values["Left"]
-        self.current_yellow_luminance = (left_value / 255.0) * 100.0
+        """Update LED values based on encoder deltas and rate."""
+        # Initialize encoders if not done yet
+        if not self.encoders_initialized:
+            self.setStartingValuesSame()
+            return
 
-        # Right encoder controls red-green ratio (0-100)
-        right_value = self.previous_encoder_values["Right"]
-        self.current_red_green_ratio = (right_value / 255.0) * 100.0
+        # Get current rate
+        current_rate = self.rates[self.current_rate_index]
+
+        # Calculate deltas and update LED values
+        for side in ["Left", "Right"]:
+            encoder_value = self.previous_encoder_values[side]
+            previous_position = self.encoder_positions[side]
+
+            # Calculate delta (handle wrap-around)
+            delta = encoder_value - previous_position
+
+            # Handle wrap-around cases
+            if delta > 128:  # Wrapped from high to low
+                delta = delta - 256
+            elif delta < -128:  # Wrapped from low to high
+                delta = delta + 256
+
+            # Apply bounds checking
+            if encoder_value == 0 and delta < 0:
+                # At minimum, don't decrease further
+                delta = 0
+            elif encoder_value == 255 and delta > 0:
+                # At maximum, don't increase further
+                delta = 0
+
+            # Apply rate and update LED value
+            if side == "Left":
+                # Left encoder controls yellow luminance (0-100%)
+                led_delta = (delta * current_rate) / 255.0 * 100.0  # Scale to percentage
+                new_value = self.current_yellow_luminance + led_delta
+                self.current_yellow_luminance = max(0.0, min(100.0, new_value))
+            else:
+                # Right encoder controls red-green ratio (0-100)
+                led_delta = (delta * current_rate) / 255.0 * 100.0  # Scale to percentage
+                new_value = self.current_red_green_ratio + led_delta
+                self.current_red_green_ratio = max(0.0, min(100.0, new_value))
+
+            # Update encoder position
+            self.encoder_positions[side] = encoder_value
 
         # Schedule LED update with rate limiting
         self.schedule_led_update()
@@ -401,6 +495,40 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         status_group.setLayout(status_layout)
         main_layout.addWidget(status_group)
 
+        # Controller Settings Section
+        controller_group = QtWidgets.QGroupBox("Controller Settings")
+        controller_layout = QtWidgets.QVBoxLayout()
+
+        # Starting value control
+        start_layout = QtWidgets.QHBoxLayout()
+        start_layout.addWidget(QtWidgets.QLabel("Starting Values:"))
+
+        self.start_same_button = QtWidgets.QPushButton("Same (128)")
+        self.start_same_button.clicked.connect(self.setStartingValuesSame)
+        start_layout.addWidget(self.start_same_button)
+
+        self.start_random_button = QtWidgets.QPushButton("Random")
+        self.start_random_button.clicked.connect(self.setStartingValuesRandom)
+        start_layout.addWidget(self.start_random_button)
+
+        controller_layout.addLayout(start_layout)
+
+        # Rate control
+        rate_layout = QtWidgets.QHBoxLayout()
+        rate_layout.addWidget(QtWidgets.QLabel("Rate:"))
+
+        self.rate_label = QtWidgets.QLabel("1x")
+        self.rate_label.setStyleSheet("font-weight: bold; padding: 5px; border: 1px solid gray;")
+        rate_layout.addWidget(self.rate_label)
+
+        rate_layout.addWidget(QtWidgets.QLabel("(Press switch to cycle)"))
+        rate_layout.addStretch()
+
+        controller_layout.addLayout(rate_layout)
+
+        controller_group.setLayout(controller_layout)
+        main_layout.addWidget(controller_group)
+
         # Current Trial Display
         trial_group = QtWidgets.QGroupBox("Current Trial")
         trial_layout = QtWidgets.QVBoxLayout()
@@ -434,6 +562,21 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.controller_manager.match_accepted_signal.connect(self.onMatchAccepted)
         self.controller_manager.values_changed_signal.connect(self.onValuesChanged)
         self.trial_completed_signal.connect(self.onTrialCompleted)
+
+    def setStartingValuesSame(self):
+        """Set both encoders to the same starting value."""
+        self.controller_manager.setStartingValuesSame()
+        self.updateRateDisplay()
+
+    def setStartingValuesRandom(self):
+        """Set encoders to random starting values."""
+        self.controller_manager.setStartingValuesRandom()
+        self.updateRateDisplay()
+
+    def updateRateDisplay(self):
+        """Update the rate display."""
+        current_rate = self.controller_manager.getCurrentRate()
+        self.rate_label.setText(f"{current_rate}x")
 
     def startExperiment(self):
         """Start the anomaloscope experiment."""
@@ -513,6 +656,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         """Handle controller value changes."""
         self.yellow_level_label.setText(f"Yellow Level: {values['yellow_luminance']:.1f}%")
         self.red_green_ratio_label.setText(f"Red:Green Ratio: {values['red_green_ratio']:.1f}")
+        self.updateRateDisplay()
 
     def updateTrialDisplay(self):
         """Update the trial display with current information."""
