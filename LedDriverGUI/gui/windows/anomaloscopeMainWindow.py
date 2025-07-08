@@ -137,11 +137,11 @@ class AnomaloscopeController(QtCore.QObject):
         self.current_red_green_ratio_int16 = 0  # 0-100 (0=all red, 100=all green)
 
         # Rate multipliers for encoder sensitivity
-        self.rates = [10, 100, 1000]
-        self.current_rate_index = 1
+        self.rates = [100, 500, 1000]
+        self.current_rate_index = 0
 
         # Currents for the LEDs
-        self.currents_GYR = [65535//2, 65535, 65535//2]
+        self.currents_GYR = [65535//4, 65535, 65535//4]
 
         # Track if encoders have been initialized
         self.encoders_initialized = False
