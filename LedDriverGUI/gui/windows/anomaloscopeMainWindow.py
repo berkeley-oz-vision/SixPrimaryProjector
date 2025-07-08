@@ -364,10 +364,16 @@ class AnomaloscopeController(QtCore.QObject):
         self.match_accepted_signal.emit(match_data)
 
     def get_current_values(self):
-        """Get current controller values."""
+        """Get current controller values as percentages."""
+        # Convert int16 range (-32768 to 32767) to 0-100%
+        yellow_percent = (self.current_yellow_lum_int16 + 32768) / 65535 * 100
+        green_percent = (self.current_red_green_ratio_int16 + 32768) / 65535 * 100
+        # Clamp to [0, 100]
+        yellow_percent = max(0.0, min(100.0, yellow_percent))
+        green_percent = max(0.0, min(100.0, green_percent))
         return {
-            'yellow_luminance': self.current_yellow_lum_int16,
-            'red_green_ratio': self.current_red_green_ratio_int16
+            'yellow_luminance': yellow_percent,
+            'red_green_ratio': green_percent
         }
 
     def cleanup(self):
@@ -639,7 +645,8 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
     def onValuesChanged(self, values):
         """Handle controller value changes."""
         self.yellow_level_label.setText(f"Yellow Level: {values['yellow_luminance']:.1f}%")
-        self.red_green_ratio_label.setText(f"Red:Green Ratio: {values['red_green_ratio']:.1f}")
+        self.red_green_ratio_label.setText(
+            f"Red:Green Ratio: {values['red_green_ratio']:.1f} : {100-values['red_green_ratio']:.1f}")
         self.updateRateDisplay()
 
     def updateTrialDisplay(self):
@@ -650,7 +657,8 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         # Update current controller values
         current_values = self.controller_manager.get_current_values()
         self.yellow_level_label.setText(f"Yellow Level: {current_values['yellow_luminance']:.1f}%")
-        self.red_green_ratio_label.setText(f"Red:Green Ratio: {current_values['red_green_ratio']:.1f}")
+        self.red_green_ratio_label.setText(
+            f"Red:Green Ratio: {current_values['red_green_ratio']:.1f} : {100-current_values['red_green_ratio']:.1f}")
 
     def stopExperiment(self):
         """Stop the experiment early."""
