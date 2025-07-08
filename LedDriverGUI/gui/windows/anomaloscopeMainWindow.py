@@ -227,7 +227,8 @@ class AnomaloscopeController(QtCore.QObject):
         # Check for encoder changes
         encoder_changed = False
         for side in ["Left", "Right"]:
-            encoder_value = controller_status["Encoder"][side] % 256
+            encoder_value = controller_status["Encoder"][side]  # % 256
+            print(f"Encoder {side} value: {encoder_value}")
             if encoder_value != self.previous_encoder_values[side]:
                 self.previous_encoder_values[side] = encoder_value
                 encoder_changed = True
@@ -456,6 +457,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         self.subject_input = QtWidgets.QLineEdit()
         self.subject_input.setPlaceholderText("Enter subject ID")
+        self.subject_input.setText("10000")  # Default subject ID
         setup_layout.addRow("Subject ID:", self.subject_input)
 
         self.trials_input = QtWidgets.QSpinBox()
