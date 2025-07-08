@@ -440,6 +440,10 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
             index = 1
             for side in ["Left", "Right"]:
                 self.gui.controller_status_dynamic_dict["Encoder"][side] += status_list[index]
+                # clip update to be within the signed int16 range
+                self.gui.controller_status_dynamic_dict["Encoder"][side] = max(
+                    -32768, min(32767, self.gui.controller_status_dynamic_dict["Encoder"][side]))
+
                 index += 1
 
                 if self.gui.controller_status_dynamic_dict["Encoder"][side] != self.gui.controller_status_dict["Encoder"][side]:

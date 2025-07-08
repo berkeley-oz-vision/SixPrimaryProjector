@@ -132,11 +132,11 @@ class AnomaloscopeController(QtCore.QObject):
         self.encoder_positions = {"Left": 0, "Right": 0}
 
         # Current LED values (0-100%)
-        self.current_yellow_luminance = 50.0  # 0-100%
-        self.current_red_green_ratio = 50.0  # 0-100 (0=all red, 100=all green)
+        self.current_yellow_lum_int16 = 0  # 0-100%
+        self.current_red_green_ratio_int16 = 0  # 0-100 (0=all red, 100=all green)
 
         # Rate multipliers for encoder sensitivity
-        self.rates = [1, 5, 10, 50, 100, 500, 1000]
+        self.rates = [10, 100, 1000]
         self.current_rate_index = 0
 
         # Track if encoders have been initialized
@@ -169,28 +169,28 @@ class AnomaloscopeController(QtCore.QObject):
 
     def reset_leds(self):
         """Reset LEDs to initial state for new trial."""
-        self.current_yellow_luminance = 50.0
-        self.current_red_green_ratio = 50.0
+        self.current_yellow_lum_int16 = 0
+        self.current_red_green_ratio_int16 = 0
         self.update_leds()
 
     def setStartingValuesSame(self):
         """Set both encoders to the same starting value (128)."""
-        self.previous_encoder_values = {"Left": 128, "Right": 128}
-        self.encoder_positions = {"Left": 128, "Right": 128}
-        self.current_yellow_luminance = 50.0
-        self.current_red_green_ratio = 50.0
+        self.previous_encoder_values = {"Left": 0, "Right": 0}
+        self.encoder_positions = {"Left": 0, "Right": 0}
+        self.current_yellow_lum_int16 = 0
+        self.current_red_green_ratio_int16 = 0
         self.encoders_initialized = True
         self.update_leds()
         print("Starting values set to same (128)")
 
     def setStartingValuesRandom(self):
         """Set encoders to random starting values."""
-        left_start = random.randint(0, 255)
-        right_start = random.randint(0, 255)
+        left_start = random.randint(-32768, 32767)
+        right_start = random.randint(-32768, 32767)
         self.previous_encoder_values = {"Left": left_start, "Right": right_start}
         self.encoder_positions = {"Left": left_start, "Right": right_start}
-        self.current_yellow_luminance = random.uniform(0, 100)
-        self.current_red_green_ratio = random.uniform(0, 100)
+        self.current_yellow_lum_int16 = left_start
+        self.current_red_green_ratio_int16 = right_start
         self.encoders_initialized = True
         self.update_leds()
         print(f"Starting values set to random: Left={left_start}, Right={right_start}")
@@ -227,8 +227,7 @@ class AnomaloscopeController(QtCore.QObject):
         # Check for encoder changes
         encoder_changed = False
         for side in ["Left", "Right"]:
-            encoder_value = controller_status["Encoder"][side]  # % 256
-            print(f"Encoder {side} value: {encoder_value}")
+            encoder_value = controller_status["Encoder"][side]
             if encoder_value != self.previous_encoder_values[side]:
                 self.previous_encoder_values[side] = encoder_value
                 encoder_changed = True
@@ -266,31 +265,17 @@ class AnomaloscopeController(QtCore.QObject):
             # Calculate delta (handle wrap-around)
             delta = encoder_value - previous_position
 
-            # Handle wrap-around cases
-            if delta > 128:  # Wrapped from high to low
-                delta = delta - 256
-            elif delta < -128:  # Wrapped from low to high
-                delta = delta + 256
-
-            # Apply bounds checking
-            if encoder_value == 0 and delta < 0:
-                # At minimum, don't decrease further
-                delta = 0
-            elif encoder_value == 255 and delta > 0:
-                # At maximum, don't increase further
-                delta = 0
-
             # Apply rate and update LED value
             if side == "Left":
                 # Left encoder controls yellow luminance (0-100%)
-                led_delta = (delta * current_rate) / 255.0 * 100.0  # Scale to percentage
-                new_value = self.current_yellow_luminance + led_delta
-                self.current_yellow_luminance = max(0.0, min(100.0, new_value))
+                led_delta = (delta * current_rate)  # Scale to percentage
+                self.current_yellow_lum_int16 = self.current_yellow_lum_int16 + led_delta
+                self.current_yellow_lum_int16 = max(-32768, min(32767, self.current_yellow_lum_int16))
             else:
                 # Right encoder controls red-green ratio (0-100)
-                led_delta = (delta * current_rate) / 255.0 * 100.0  # Scale to percentage
-                new_value = self.current_red_green_ratio + led_delta
-                self.current_red_green_ratio = max(0.0, min(100.0, new_value))
+                led_delta = (delta * current_rate)  # Scale to percentage
+                self.current_red_green_ratio_int16 = self.current_red_green_ratio_int16 + led_delta
+                self.current_red_green_ratio_int16 = max(-32768, min(32767, self.current_red_green_ratio_int16))
 
             # Update encoder position
             self.encoder_positions[side] = encoder_value
@@ -332,14 +317,11 @@ class AnomaloscopeController(QtCore.QObject):
             return
 
         # Calculate LED intensities
-        yellow_pwm = int((self.current_yellow_luminance / 100.0) * 65535)
+        yellow_pwm = self.current_yellow_lum_int16 + 32768
 
         # Red-green mixture: ratio determines split, but total is always 100%
-        red_percentage = 100.0 - self.current_red_green_ratio
-        green_percentage = self.current_red_green_ratio
-
-        red_pwm = int((red_percentage / 100.0) * 65535)
-        green_pwm = int((green_percentage / 100.0) * 65535)
+        red_pwm = self.current_red_green_ratio_int16 + 32768
+        green_pwm = 65535 - red_pwm
 
         # Prepare PWM updates
         pwm_updates = {}
@@ -374,8 +356,8 @@ class AnomaloscopeController(QtCore.QObject):
     def accept_match(self):
         """Handle match acceptance (button press)."""
         match_data = {
-            'yellow_luminance': self.current_yellow_luminance,
-            'red_green_ratio': self.current_red_green_ratio,
+            'yellow_luminance': self.current_yellow_lum_int16,
+            'red_green_ratio': self.current_red_green_ratio_int16,
             'timestamp': QtCore.QDateTime.currentDateTime().toString('yyyy-MM-dd hh:mm:ss.zzz')
         }
 
@@ -384,8 +366,8 @@ class AnomaloscopeController(QtCore.QObject):
     def get_current_values(self):
         """Get current controller values."""
         return {
-            'yellow_luminance': self.current_yellow_luminance,
-            'red_green_ratio': self.current_red_green_ratio
+            'yellow_luminance': self.current_yellow_lum_int16,
+            'red_green_ratio': self.current_red_green_ratio_int16
         }
 
     def cleanup(self):
