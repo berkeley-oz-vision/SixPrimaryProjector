@@ -182,6 +182,11 @@ class AnomaloscopeController(QtCore.QObject):
         self.encoder_positions = {"Left": 0, "Right": 0}
         self.current_yellow_lum_int16 = 0
         self.current_red_green_ratio_int16 = 0
+        # Update the GUI's controller status dict to match
+        self.gui.controller_status_dict["Encoder"]["Left"] = 0
+        self.gui.controller_status_dict["Encoder"]["Right"] = 0
+        self.gui.controller_status_dynamic_dict["Encoder"]["Left"] = 0
+        self.gui.controller_status_dynamic_dict["Encoder"]["Right"] = 0
         self.encoders_initialized = True
         self.update_leds()
         print("Starting values set to same (Halfway )")
@@ -194,6 +199,11 @@ class AnomaloscopeController(QtCore.QObject):
         self.encoder_positions = {"Left": left_start, "Right": right_start}
         self.current_yellow_lum_int16 = left_start
         self.current_red_green_ratio_int16 = right_start
+        # Update the GUI's controller status dict to match
+        self.gui.controller_status_dict["Encoder"]["Left"] = left_start
+        self.gui.controller_status_dict["Encoder"]["Right"] = right_start
+        self.gui.controller_status_dynamic_dict["Encoder"]["Left"] = left_start
+        self.gui.controller_status_dynamic_dict["Encoder"]["Right"] = right_start
         self.encoders_initialized = True
         self.update_leds()
         print(f"Starting values set to random: Left={left_start}, Right={right_start}")
