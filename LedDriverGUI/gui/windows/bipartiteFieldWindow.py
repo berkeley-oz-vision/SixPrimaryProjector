@@ -62,7 +62,7 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         # Calculate the center and radius for the circle
         center_x = width // 2
         center_y = height // 2
-        radius = min(width, height) // 3  # Make circle take up about 2/3 of the screen
+        radius = min(width, height) // 6  # Make circle 2x smaller (was //3, now //6)
 
         # Draw the bipartite field circle
         self.drawBipartiteCircle(painter, center_x, center_y, radius)
@@ -77,15 +77,15 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         # Create a clipping region for the circle
         painter.setClipPath(circle_path)
 
-        # Draw the left half (green)
-        left_rect = QtCore.QRect(center_x - radius, center_y - radius,
-                                 radius, radius * 2)
-        painter.fillRect(left_rect, QtGui.QColor(*self.left_color))
+        # Draw the top half (green) - rotated 90 degrees
+        top_rect = QtCore.QRect(center_x - radius, center_y - radius,
+                                radius * 2, radius)
+        painter.fillRect(top_rect, QtGui.QColor(*self.left_color))
 
-        # Draw the right half (magenta)
-        right_rect = QtCore.QRect(center_x, center_y - radius,
-                                  radius, radius * 2)
-        painter.fillRect(right_rect, QtGui.QColor(*self.right_color))
+        # Draw the bottom half (magenta) - rotated 90 degrees
+        bottom_rect = QtCore.QRect(center_x - radius, center_y,
+                                   radius * 2, radius)
+        painter.fillRect(bottom_rect, QtGui.QColor(*self.right_color))
 
         # Remove clipping
         painter.setClipping(False)
