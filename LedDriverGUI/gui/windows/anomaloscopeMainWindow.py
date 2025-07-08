@@ -177,14 +177,14 @@ class AnomaloscopeController(QtCore.QObject):
         self.update_leds()
 
     def setStartingValuesSame(self):
-        """Set both encoders to the same starting value (128)."""
+        """Set both encoders to the same starting value (Halfway)."""
         self.previous_encoder_values = {"Left": 0, "Right": 0}
         self.encoder_positions = {"Left": 0, "Right": 0}
         self.current_yellow_lum_int16 = 0
         self.current_red_green_ratio_int16 = 0
         self.encoders_initialized = True
         self.update_leds()
-        print("Starting values set to same (128)")
+        print("Starting values set to same (Halfway )")
 
     def setStartingValuesRandom(self):
         """Set encoders to random starting values."""
@@ -650,10 +650,8 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
     def _start_adaptation_period(self):
         # Show black field
         if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
-            self.bipartite_manager.bipartite_window.hide()  # Hide field, then show black
             self.bipartite_manager.bipartite_window.left_color = [0, 0, 0]
             self.bipartite_manager.bipartite_window.right_color = [0, 0, 0]
-            self.bipartite_manager.bipartite_window.show()
             self.bipartite_manager.bipartite_window.update()
         # Disable controls
         self.controller_manager.disable_all_controls()
@@ -666,6 +664,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             self.bipartite_manager.bipartite_window.left_color = [0, 255, 0]
             self.bipartite_manager.bipartite_window.right_color = [255, 0, 255]
             self.bipartite_manager.bipartite_window.update()
+
         # Randomize controls
         self.controller_manager.setStartingValuesRandom()
         # Enable controls
@@ -690,12 +689,12 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.trial_completed_signal.emit(trial_data)
 
         # 1. Blank the bipartite field
-        if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
-            self.bipartite_manager.bipartite_window.hide()
+        # if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
+        #     self.bipartite_manager.bipartite_window.hide()
         # 2. Reset controls to same (or random if desired)
-        self.controller_manager.setStartingValuesSame()  # or setStartingValuesRandom()
-        # 3. Wait 3 seconds, then show field and start next trial
-        QtCore.QTimer.singleShot(3000, self._resume_after_blank)
+        # self.controller_manager.setStartingValuesSame()  # or setStartingValuesRandom()
+        # 3. Wait for the adaptation period, then show field and start next trial
+        # QtCore.QTimer.singleShot(1000, self._resume_after_blank)
 
     def _resume_after_blank(self):
         if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
