@@ -507,7 +507,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         rate_layout = QtWidgets.QHBoxLayout()
         rate_layout.addWidget(QtWidgets.QLabel("Rate:"))
 
-        self.rate_label = QtWidgets.QLabel("1x")
+        self.rate_label = QtWidgets.QLabel(f"{self.controller_manager.getCurrentRate()}x")
         self.rate_label.setStyleSheet("font-weight: bold; padding: 5px; border: 1px solid gray;")
         rate_layout.addWidget(self.rate_label)
 
