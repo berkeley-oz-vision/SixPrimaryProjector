@@ -138,7 +138,7 @@ class AnomaloscopeController(QtCore.QObject):
 
         # Rate multipliers for encoder sensitivity
         self.rates = [10, 100, 1000]
-        self.current_rate_index = 0
+        self.current_rate_index = 1
 
         # Track if encoders have been initialized
         self.encoders_initialized = False
@@ -485,13 +485,13 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         self.trials_input = QtWidgets.QSpinBox()
         self.trials_input.setRange(1, 100)
-        self.trials_input.setValue(10)
+        self.trials_input.setValue(3)
         setup_layout.addRow("Number of Trials:", self.trials_input)
 
         # Adaptation duration control
         self.adapt_duration_input = QtWidgets.QSpinBox()
         self.adapt_duration_input.setRange(1, 120)
-        self.adapt_duration_input.setValue(20)
+        self.adapt_duration_input.setValue(5)
         self.adapt_duration_input.setSuffix(" s")
         setup_layout.addRow("Adaptation (black) duration:", self.adapt_duration_input)
 
