@@ -6,6 +6,7 @@ from PyQt5.QtCore import pyqtSignal
 from PyQt5 import QtGui, QtCore, QtWidgets
 from .bipartiteFieldWindow import BipartiteFieldManager
 import random
+from PyQt5.QtMultimedia import QSound
 
 
 class TrialManager:
@@ -153,6 +154,8 @@ class AnomaloscopeController(QtCore.QObject):
         self.update_timer.timeout.connect(self.process_pending_led_update)
         self.update_timer.setSingleShot(True)
 
+        self.match_accept_enabled = True  # Prevent double match
+
     def start_monitoring(self):
         """Start monitoring controller inputs."""
         self.monitoring = True
@@ -208,10 +211,27 @@ class AnomaloscopeController(QtCore.QObject):
         """Get current rate multiplier."""
         return self.rates[self.current_rate_index]
 
+    def enable_match_accept(self):
+        self.match_accept_enabled = True
+
+    def disable_match_accept(self):
+        self.match_accept_enabled = False
+
+    def disable_all_controls(self):
+        self.controls_enabled = False
+        self.disable_match_accept()
+
+    def enable_all_controls(self):
+        self.controls_enabled = True
+        self.enable_match_accept()
+
+    def controls_are_enabled(self):
+        return getattr(self, 'controls_enabled', True)
+
     @QtCore.pyqtSlot(dict)
     def update_controller_status(self, controller_status):
         """Update controller status and handle input changes."""
-        if not self.monitoring:
+        if not self.monitoring or not self.controls_are_enabled():
             return
 
         # Handle switch presses for rate cycling
@@ -243,7 +263,7 @@ class AnomaloscopeController(QtCore.QObject):
             self.previous_button_states[side] = button_pressed
 
             # Detect button press (rising edge)
-            if button_pressed and not was_pressed:
+            if button_pressed and not was_pressed and self.match_accept_enabled:
                 self.accept_match()
                 break
 
@@ -355,12 +375,17 @@ class AnomaloscopeController(QtCore.QObject):
 
     def accept_match(self):
         """Handle match acceptance (button press)."""
+        self.disable_match_accept()
+        # Play a sound (try QSound, fallback to system beep)
+        try:
+            QSound.play("/System/Library/Sounds/Glass.aiff")  # macOS system sound, change path as needed
+        except Exception:
+            QtWidgets.QApplication.beep()
         match_data = {
             'yellow_luminance': self.current_yellow_lum_int16,
             'red_green_ratio': self.current_red_green_ratio_int16,
             'timestamp': QtCore.QDateTime.currentDateTime().toString('yyyy-MM-dd hh:mm:ss.zzz')
         }
-
         self.match_accepted_signal.emit(match_data)
 
     def get_current_values(self):
@@ -452,6 +477,13 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.trials_input.setRange(1, 100)
         self.trials_input.setValue(10)
         setup_layout.addRow("Number of Trials:", self.trials_input)
+
+        # Adaptation duration control
+        self.adapt_duration_input = QtWidgets.QSpinBox()
+        self.adapt_duration_input.setRange(1, 120)
+        self.adapt_duration_input.setValue(20)
+        self.adapt_duration_input.setSuffix(" s")
+        setup_layout.addRow("Adaptation (black) duration:", self.adapt_duration_input)
 
         setup_group.setLayout(setup_layout)
         main_layout.addWidget(setup_group)
@@ -612,8 +644,33 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.current_trial += 1
         self.updateTrialDisplay()
 
-        # Reset LEDs for new trial
-        self.controller_manager.reset_leds()
+        # Start adaptation period (black field, controls disabled)
+        self._start_adaptation_period()
+
+    def _start_adaptation_period(self):
+        # Show black field
+        if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
+            self.bipartite_manager.bipartite_window.hide()  # Hide field, then show black
+            self.bipartite_manager.bipartite_window.left_color = [0, 0, 0]
+            self.bipartite_manager.bipartite_window.right_color = [0, 0, 0]
+            self.bipartite_manager.bipartite_window.show()
+            self.bipartite_manager.bipartite_window.update()
+        # Disable controls
+        self.controller_manager.disable_all_controls()
+        self.status_label.setText(f"Adapt to black field... ({self.adapt_duration_input.value()} s)")
+        QtCore.QTimer.singleShot(self.adapt_duration_input.value() * 1000, self._start_trial_after_adapt)
+
+    def _start_trial_after_adapt(self):
+        # Show bipartite field (restore colors)
+        if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
+            self.bipartite_manager.bipartite_window.left_color = [0, 255, 0]
+            self.bipartite_manager.bipartite_window.right_color = [255, 0, 255]
+            self.bipartite_manager.bipartite_window.update()
+        # Randomize controls
+        self.controller_manager.setStartingValuesRandom()
+        # Enable controls
+        self.controller_manager.enable_all_controls()
+        self.status_label.setText("Adjust controllers and press button when colors match")
 
     def onMatchAccepted(self, match_data):
         """Handle when participant accepts a color match."""
@@ -631,6 +688,20 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         self.trial_manager.record_trial(trial_data)
         self.trial_completed_signal.emit(trial_data)
+
+        # 1. Blank the bipartite field
+        if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
+            self.bipartite_manager.bipartite_window.hide()
+        # 2. Reset controls to same (or random if desired)
+        self.controller_manager.setStartingValuesSame()  # or setStartingValuesRandom()
+        # 3. Wait 3 seconds, then show field and start next trial
+        QtCore.QTimer.singleShot(3000, self._resume_after_blank)
+
+    def _resume_after_blank(self):
+        if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
+            self.bipartite_manager.bipartite_window.show()
+        self.controller_manager.enable_match_accept()
+        self.startNextTrial()
 
     def onTrialCompleted(self, trial_data):
         """Handle trial completion."""
