@@ -140,6 +140,9 @@ class AnomaloscopeController(QtCore.QObject):
         self.rates = [10, 100, 1000]
         self.current_rate_index = 1
 
+        # Currents for the LEDs
+        self.currents_GYR = [65535//2, 65535, 65535//2]
+
         # Track if encoders have been initialized
         self.encoders_initialized = False
 
@@ -360,7 +363,7 @@ class AnomaloscopeController(QtCore.QObject):
         for board in range(1, self.gui.nBoards() + 1):
             pwm_updates[f"Channel{board}"] = board
             pwm_updates[f"PWM{board}"] = 0
-            pwm_updates[f"Current{board}"] = 65535
+            pwm_updates[f"Current{board}"] = self.currents_GYR[board - 1]
 
         # Set specific LED values
         red_board = self.led_config['red_board']
