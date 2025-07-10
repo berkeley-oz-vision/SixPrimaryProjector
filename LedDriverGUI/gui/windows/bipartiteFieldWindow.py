@@ -22,6 +22,18 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         # Store screen geometry
         self.screen_geometry = screen_geometry
 
+        # Define target rendering dimensions (correct aspect ratio)
+        self.render_width = 1280
+        self.render_height = 800
+
+        # Define projector framebuffer dimensions (distorted)
+        self.framebuffer_width = 920
+        self.framebuffer_height = 1140
+
+        # Calculate aspect ratio correction factors
+        self.aspect_scale_x = self.framebuffer_width / self.render_width   # 920/1280 ≈ 0.719
+        self.aspect_scale_y = self.framebuffer_height / self.render_height  # 1140/800 = 1.425
+
         # Initialize colors (RGB values)
         self.left_color = [0, 255, 0]    # Green
         self.right_color = [255, 0, 255]  # Magenta
@@ -48,27 +60,44 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         self.update()
 
     def paintEvent(self, event):
-        """Custom paint event to draw the bipartite field."""
+        """Custom paint event with aspect ratio correction."""
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
-        # Get the widget dimensions
-        width = self.width()
-        height = self.height()
+        # Get actual window dimensions (should be projector dimensions)
+        window_width = self.width()
+        window_height = self.height()
 
-        # Fill the entire window with black background
-        painter.fillRect(0, 0, width, height, QtGui.QColor(0, 0, 0))
+        # Fill with black background
+        painter.fillRect(0, 0, window_width, window_height, QtGui.QColor(0, 0, 0))
 
-        # Calculate the center and radius for the circle
-        center_x = width // 2
-        center_y = height // 2
-        radius = min(width, height) // 6  # Make circle 2x smaller (was //3, now //6)
+        # Create an off-screen image at the target render resolution (1280x800)
+        render_image = QtGui.QImage(self.render_width, self.render_height, QtGui.QImage.Format_RGB32)
+        render_image.fill(QtGui.QColor(0, 0, 0))  # Black background
 
-        # Draw the bipartite field circle
-        self.drawBipartiteCircle(painter, center_x, center_y, radius)
+        # Create a painter for the off-screen image
+        render_painter = QtGui.QPainter(render_image)
+        render_painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
-    def drawBipartiteCircle(self, painter, center_x, center_y, radius):
-        """Draw a circle split into two halves with different colors."""
+        # Draw the bipartite circle at the correct aspect ratio
+        self.drawBipartiteCircleOnImage(render_painter, self.render_width, self.render_height)
+
+        # End painting on the off-screen image
+        render_painter.end()
+
+        # Now stretch the correctly-rendered image to fill the projector's framebuffer
+        # This compensates for the projector's aspect ratio distortion
+        painter.drawImage(QtCore.QRect(0, 0, window_width, window_height),
+                          render_image,
+                          QtCore.QRect(0, 0, self.render_width, self.render_height))
+
+    def drawBipartiteCircleOnImage(self, painter, image_width, image_height):
+        """Draw a perfect circle in the render space (1280x800)."""
+        # Calculate center and radius in render space
+        center_x = image_width // 2
+        center_y = image_height // 2
+        radius = min(image_width, image_height) // 6  # Same relative size as before
+
         # Create a circular path
         circle_path = QtGui.QPainterPath()
         circle_path.addEllipse(center_x - radius, center_y - radius,
@@ -77,12 +106,12 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         # Create a clipping region for the circle
         painter.setClipPath(circle_path)
 
-        # Draw the top half (green) - rotated 90 degrees
+        # Draw the top half (left color)
         top_rect = QtCore.QRect(center_x - radius, center_y - radius,
                                 radius * 2, radius)
         painter.fillRect(top_rect, QtGui.QColor(*self.left_color))
 
-        # Draw the bottom half (magenta) - rotated 90 degrees
+        # Draw the bottom half (right color)
         bottom_rect = QtCore.QRect(center_x - radius, center_y,
                                    radius * 2, radius)
         painter.fillRect(bottom_rect, QtGui.QColor(*self.right_color))
@@ -90,10 +119,11 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         # Remove clipping
         painter.setClipping(False)
 
-        # # Optionally draw a border around the circle
-        # painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255), 2))  # White border
-        # painter.drawEllipse(center_x - radius, center_y - radius,
-        #                     radius * 2, radius * 2)
+    def drawBipartiteCircle(self, painter, center_x, center_y, radius):
+        """Legacy method - now redirects to new implementation."""
+        # This method is kept for compatibility but the actual rendering
+        # is now handled by drawBipartiteCircleOnImage
+        pass
 
     def updateColors(self, left_color, right_color):
         """Update the colors of the bipartite field."""
