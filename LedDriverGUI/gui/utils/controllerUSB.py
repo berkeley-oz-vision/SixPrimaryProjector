@@ -62,6 +62,14 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
         # Connect mainWindow status signal to dialog status signal
         self.gui.controller_status_signal.connect(self.controllerChanged)
 
+        # Rate limiting for controller status signal emissions (60 Hz max)
+        self.last_status_emit_time = 0
+        self.status_emit_rate_limit = 1.0 / 60.0  # 60 Hz = ~16.67ms between emits
+        self.pending_status_emit = False
+        self.status_emit_timer = QtCore.QTimer()
+        self.status_emit_timer.setSingleShot(True)
+        self.status_emit_timer.timeout.connect(self.emitPendingStatusChange)
+
         for action in self.gui.menu_connection_controllers.actions():
             self.conn_menu_action_group.addAction(action)
 
@@ -450,9 +458,21 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
                     self.gui.controller_status_dict["Encoder"][side] = self.gui.controller_status_dynamic_dict["Encoder"][side]
                     status_change = True
 
-            # If status has changed, emit status change signal with the new status dictionary
+            # If status has changed, emit status change signal with rate limiting (60 Hz max)
             if status_change:
-                self.gui.controller_status_signal.emit(self.gui.controller_status_dict)
+                current_time = timer()
+                time_since_last_emit = current_time - self.last_status_emit_time
+
+                if time_since_last_emit >= self.status_emit_rate_limit:
+                    # Enough time has passed, emit immediately
+                    self.last_status_emit_time = current_time
+                    self.gui.controller_status_signal.emit(self.gui.controller_status_dict)
+                else:
+                    # Rate limit exceeded, schedule delayed emit if not already pending
+                    self.pending_status_emit = True
+                    if not self.status_emit_timer.isActive():
+                        remaining_time = self.status_emit_rate_limit - time_since_last_emit
+                        self.status_emit_timer.start(int(remaining_time * 1000))  # Convert to milliseconds
 
             # Send heartbeat packet in reply
             if (timer() - self.heartbeat_timer) > HEARTBEAT_INTERVAL:
@@ -486,6 +506,13 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
         self.gui.message_box.exec()
 
 ######################################################################################################################################################################################################################################
+
+    def emitPendingStatusChange(self):
+        """Emit a pending status change signal - called by timer for rate limiting"""
+        if self.pending_status_emit:
+            self.pending_status_emit = False
+            self.last_status_emit_time = timer()
+            self.gui.controller_status_signal.emit(self.gui.controller_status_dict)
 
     def controllerChanged(self, dict):
         # Enhanced controller change handler that can be used for real-time LED control
