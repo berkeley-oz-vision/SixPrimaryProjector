@@ -110,6 +110,14 @@ class TrialManager:
             'count': len(values)
         }
 
+    def remove_last_trial(self):
+        """Remove the most recently recorded trial."""
+        if self.trials:
+            removed_trial = self.trials.pop()
+            print(f"Removed trial {removed_trial['trial_number']} from data")
+            return removed_trial
+        return None
+
 
 class AnomaloscopeController(QtCore.QObject):
     """Controller for anomaloscope LED management and user input."""
@@ -436,11 +444,16 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
     trial_completed_signal = QtCore.pyqtSignal(dict)
     experiment_finished_signal = QtCore.pyqtSignal()
 
+    # Trial state constants
+    BEFORE_TRIAL_ADAPTATION = 0
+    STIMULUS_TIME = 1
+    DURING_TRIAL_ADAPTATION = 2
+
     def __init__(self, app, main_window):
         super(AnomaloscopeWindow, self).__init__()
         self.app = app
         self.gui = main_window
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         self.window_closed = False
 
         # Configuration - Abstract LED mapping
@@ -461,6 +474,12 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.total_trials = 0
         self.subject_id = ""
 
+        # Trial loop state
+        self.current_trial_state = self.BEFORE_TRIAL_ADAPTATION
+        self.trial_loop_timer = QtCore.QTimer()
+        self.trial_loop_timer.timeout.connect(self._continue_trial_loop)
+        self.trial_loop_timer.setSingleShot(True)
+
         self.setupUI()
         self.connectSignals()
 
@@ -473,7 +492,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Title
         title = QtWidgets.QLabel("Anomaloscope Color Matching")
-        title.setAlignment(QtCore.Qt.AlignCenter)
+        title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 18px; font-weight: bold; margin: 10px;")
         main_layout.addWidget(title)
 
@@ -491,15 +510,36 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.trials_input.setValue(3)
         setup_layout.addRow("Number of Trials:", self.trials_input)
 
-        # Adaptation duration control
-        self.adapt_duration_input = QtWidgets.QSpinBox()
-        self.adapt_duration_input.setRange(1, 120)
-        self.adapt_duration_input.setValue(5)
-        self.adapt_duration_input.setSuffix(" s")
-        setup_layout.addRow("Adaptation (black) duration:", self.adapt_duration_input)
-
         setup_group.setLayout(setup_layout)
         main_layout.addWidget(setup_group)
+
+        # Timing Controls Section
+        timing_group = QtWidgets.QGroupBox("Trial Timing Controls")
+        timing_layout = QtWidgets.QFormLayout()
+
+        # Before trial adaptation duration
+        self.before_trial_adaptation_input = QtWidgets.QSpinBox()
+        self.before_trial_adaptation_input.setRange(1, 120)
+        self.before_trial_adaptation_input.setValue(5)
+        self.before_trial_adaptation_input.setSuffix(" s")
+        timing_layout.addRow("Before trial adaptation (black):", self.before_trial_adaptation_input)
+
+        # Stimulus time duration
+        self.stimulus_time_input = QtWidgets.QSpinBox()
+        self.stimulus_time_input.setRange(1, 120)
+        self.stimulus_time_input.setValue(10)
+        self.stimulus_time_input.setSuffix(" s")
+        timing_layout.addRow("Stimulus time (bipartite field):", self.stimulus_time_input)
+
+        # During trial adaptation duration
+        self.during_trial_adaptation_input = QtWidgets.QSpinBox()
+        self.during_trial_adaptation_input.setRange(1, 120)
+        self.during_trial_adaptation_input.setValue(3)
+        self.during_trial_adaptation_input.setSuffix(" s")
+        timing_layout.addRow("During trial adaptation (black):", self.during_trial_adaptation_input)
+
+        timing_group.setLayout(timing_layout)
+        main_layout.addWidget(timing_group)
 
         # Control Buttons
         button_layout = QtWidgets.QHBoxLayout()
@@ -585,7 +625,13 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.export_button = QtWidgets.QPushButton("Export Data to CSV")
         self.export_button.clicked.connect(self.exportData)
 
+        self.discard_last_trial_button = QtWidgets.QPushButton("Discard Last Trial")
+        self.discard_last_trial_button.setStyleSheet("background-color: #ffcccc; font-weight: bold;")
+        self.discard_last_trial_button.clicked.connect(self.discardLastTrial)
+        self.discard_last_trial_button.setEnabled(False)  # Disabled until trials are completed
+
         export_layout.addWidget(self.export_button)
+        export_layout.addWidget(self.discard_last_trial_button)
         export_group.setLayout(export_layout)
         main_layout.addWidget(export_group)
 
@@ -630,11 +676,16 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.stop_button.setEnabled(True)
         self.subject_input.setEnabled(False)
         self.trials_input.setEnabled(False)
+        self.before_trial_adaptation_input.setEnabled(False)
+        self.stimulus_time_input.setEnabled(False)
+        self.during_trial_adaptation_input.setEnabled(False)
+        self.discard_last_trial_button.setEnabled(False)
 
         # Setup progress bar
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, self.total_trials)
         self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("0/%d" % self.total_trials)
 
         # Initialize trial manager
         self.trial_manager.initialize_experiment(self.subject_id, self.total_trials)
@@ -657,37 +708,103 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.current_trial += 1
         self.updateTrialDisplay()
 
-        # Start adaptation period (black field, controls disabled)
-        self._start_adaptation_period()
+        # Start before trial adaptation phase
+        self._start_before_trial_adaptation()
 
-    def _start_adaptation_period(self):
+    def _start_before_trial_adaptation(self):
+        """Start the before trial adaptation phase (black field)."""
+        self.current_trial_state = self.BEFORE_TRIAL_ADAPTATION
+
         # Show black field
         if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
             self.bipartite_manager.bipartite_window.left_color = [0, 0, 0]
             self.bipartite_manager.bipartite_window.right_color = [0, 0, 0]
             self.bipartite_manager.bipartite_window.update()
+
         # Disable controls
         self.controller_manager.disable_all_controls()
-        self.status_label.setText(f"Adapt to black field... ({self.adapt_duration_input.value()} s)")
-        QtCore.QTimer.singleShot(self.adapt_duration_input.value() * 1000, self._start_trial_after_adapt)
 
-    def _start_trial_after_adapt(self):
+        # Update status
+        duration = self.before_trial_adaptation_input.value()
+        self.status_label.setText(f"Before trial adaptation (black field)... ({duration} s)")
+
+        # Start timer for next phase
+        self.trial_loop_timer.start(duration * 1000)
+
+    def _start_stimulus_time(self, randomize_controls=True):
+        """Start the stimulus time phase (bipartite field visible)."""
+        self.current_trial_state = self.STIMULUS_TIME
+
         # Show bipartite field (restore colors)
         if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
             self.bipartite_manager.bipartite_window.left_color = [0, 255, 0]
             self.bipartite_manager.bipartite_window.right_color = [255, 0, 255]
             self.bipartite_manager.bipartite_window.update()
 
-        # Randomize controls
-        self.controller_manager.setStartingValuesRandom()
+        # Randomize controls only on first stimulus presentation of a trial
+        if randomize_controls:
+            self.controller_manager.setStartingValuesRandom()
+
         # Enable controls
         self.controller_manager.enable_all_controls()
-        self.status_label.setText("Adjust controllers and press button when colors match")
+
+        # Update status
+        duration = self.stimulus_time_input.value()
+        self.status_label.setText(
+            f"Stimulus time - Adjust controllers and press button when colors match ({duration} s)")
+
+        # Start timer for next phase
+        self.trial_loop_timer.start(duration * 1000)
+
+    def _start_during_trial_adaptation(self):
+        """Start the during trial adaptation phase (black field)."""
+        self.current_trial_state = self.DURING_TRIAL_ADAPTATION
+
+        # Show black field
+        if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
+            self.bipartite_manager.bipartite_window.left_color = [0, 0, 0]
+            self.bipartite_manager.bipartite_window.right_color = [0, 0, 0]
+            self.bipartite_manager.bipartite_window.update()
+
+        # Disable controls
+        self.controller_manager.disable_all_controls()
+
+        # Update status
+        duration = self.during_trial_adaptation_input.value()
+        self.status_label.setText(f"During trial adaptation (black field)... ({duration} s)")
+
+        # Start timer for next phase
+        self.trial_loop_timer.start(duration * 1000)
+
+    def _continue_trial_loop(self):
+        """Continue the trial loop based on current state."""
+        if not self.experiment_active:
+            return
+
+        if self.current_trial_state == self.BEFORE_TRIAL_ADAPTATION:
+            # Move to stimulus time (first time - randomize controls)
+            self._start_stimulus_time(randomize_controls=True)
+        elif self.current_trial_state == self.STIMULUS_TIME:
+            # Move to during trial adaptation
+            self._start_during_trial_adaptation()
+        elif self.current_trial_state == self.DURING_TRIAL_ADAPTATION:
+            # Loop back to stimulus time (don't randomize controls)
+            self._start_stimulus_time(randomize_controls=False)
 
     def onMatchAccepted(self, match_data):
         """Handle when participant accepts a color match."""
         if not self.experiment_active:
             return
+
+        # Only accept matches during stimulus time
+        if self.current_trial_state != self.STIMULUS_TIME:
+            return
+
+        # Stop the trial loop timer
+        self.trial_loop_timer.stop()
+
+        # Disable controls immediately
+        self.controller_manager.disable_all_controls()
 
         # Record trial data
         trial_data = {
@@ -701,29 +818,19 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.trial_manager.record_trial(trial_data)
         self.trial_completed_signal.emit(trial_data)
 
-        # 1. Blank the bipartite field
-        # if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
-        #     self.bipartite_manager.bipartite_window.hide()
-        # 2. Reset controls to same (or random if desired)
-        # self.controller_manager.setStartingValuesSame()  # or setStartingValuesRandom()
-        # 3. Wait for the adaptation period, then show field and start next trial
-        # QtCore.QTimer.singleShot(1000, self._resume_after_blank)
-
-    def _resume_after_blank(self):
-        if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
-            self.bipartite_manager.bipartite_window.show()
-        self.controller_manager.enable_match_accept()
-        self.startNextTrial()
-
     def onTrialCompleted(self, trial_data):
         """Handle trial completion."""
         self.progress_bar.setValue(self.current_trial)
+        self.progress_bar.setFormat("%d/%d" % (self.current_trial, self.total_trials))
+
+        # Enable discard button after trial completion
+        self.discard_last_trial_button.setEnabled(True)
 
         # Show brief feedback
-        self.status_label.setText(f"Trial {self.current_trial} completed")
+        self.status_label.setText(f"Trial {self.current_trial} completed - Match accepted!")
 
         # Start next trial after brief delay
-        QtCore.QTimer.singleShot(1000, self.startNextTrial)
+        QtCore.QTimer.singleShot(1500, self.startNextTrial)
 
     def onValuesChanged(self, values):
         """Handle controller value changes."""
@@ -760,6 +867,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.experiment_active = False
         self.controller_manager.stop_monitoring()
 
+        # Stop trial loop timer
+        self.trial_loop_timer.stop()
+
         # Close bipartite field window
         self.bipartite_manager.closeWindow()
 
@@ -768,6 +878,10 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.stop_button.setEnabled(False)
         self.subject_input.setEnabled(True)
         self.trials_input.setEnabled(True)
+        self.before_trial_adaptation_input.setEnabled(True)
+        self.stimulus_time_input.setEnabled(True)
+        self.during_trial_adaptation_input.setEnabled(True)
+        self.discard_last_trial_button.setEnabled(False)  # Keep disabled when experiment finishes
         self.progress_bar.setVisible(False)
 
         # Show completion message
@@ -776,6 +890,47 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Auto-export data
         self.exportData()
+
+    def discardLastTrial(self):
+        """Discard the most recently completed trial."""
+        if not self.trial_manager.has_data():
+            QtWidgets.QMessageBox.information(self, "No Data", "No trials to discard")
+            return
+
+        # Get the last trial number
+        trials = self.trial_manager.get_trials()
+        if not trials:
+            QtWidgets.QMessageBox.information(self, "No Data", "No trials to discard")
+            return
+
+        last_trial_number = trials[-1]['trial_number']
+
+        # Confirm with user
+        reply = QtWidgets.QMessageBox.question(
+            self, "Discard Trial",
+            f"Are you sure you want to discard trial {last_trial_number}?\n\n"
+            f"Trial data:\n"
+            f"Yellow Luminance: {trials[-1]['yellow_luminance_percent']:.1f}%\n"
+            f"Red:Green Ratio: {trials[-1]['red_green_ratio']:.1f}%\n"
+            f"Timestamp: {trials[-1]['match_timestamp']}",
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
+        )
+
+        if reply == QtWidgets.QMessageBox.Yes:
+            # Remove the last trial from the trial manager
+            self.trial_manager.remove_last_trial()
+
+            # Update progress bar to reflect the removed trial
+            completed_trials = len(self.trial_manager.get_trials())
+            self.progress_bar.setValue(completed_trials)
+            self.progress_bar.setFormat("%d/%d" % (completed_trials, self.total_trials))
+
+            # Update status
+            self.status_label.setText(f"Trial {last_trial_number} discarded. {completed_trials} trials remaining.")
+
+            # Disable discard button if no more trials
+            if completed_trials == 0:
+                self.discard_last_trial_button.setEnabled(False)
 
     def exportData(self):
         """Export collected data to CSV."""
@@ -810,6 +965,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         self.controller_manager.cleanup()
         self.bipartite_manager.closeWindow()
+        self.trial_loop_timer.stop()
         self.window_closed = True
         event.accept()
 
