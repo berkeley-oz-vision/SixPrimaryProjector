@@ -38,6 +38,9 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         self.left_color = [0, 255, 0]    # Green
         self.right_color = [255, 0, 255]  # Magenta
 
+        # Initialize radius (direct pixel value)
+        self.radius_pixels = int(min(self.render_width, self.render_height) // 6 / 2.5)   # Default radius in pixels
+
         # Move the window to the second monitor's position
         self.setGeometry(screen_geometry.x, screen_geometry.y,
                          screen_geometry.width, screen_geometry.height)
@@ -93,10 +96,11 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
 
     def drawBipartiteCircleOnImage(self, painter, image_width, image_height):
         """Draw a perfect circle in the render space (1280x800)."""
-        # Calculate center and radius in render space
+        # Calculate center in render space
         center_x = image_width // 2
         center_y = image_height // 2
-        radius = int(min(image_width, image_height) // 6 / 2.5)  # Same relative size as before
+       # radius = int(min(image_width, image_height) // 6 / 2.5)  # Same relative size as before
+        radius = self.radius_pixels
 
         # Create a circular path
         circle_path = QtGui.QPainterPath()
@@ -130,6 +134,16 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         self.left_color = left_color
         self.right_color = right_color
         self.update()  # Trigger a repaint
+
+    def updateRadius(self, radius_pixels):
+        """Update the radius of the bipartite field circle.
+
+        Args:
+            radius_pixels (int): Radius in pixels. Must be positive.
+        """
+        if radius_pixels > 0:
+            self.radius_pixels = radius_pixels
+            self.update()  # Trigger a repaint
 
     def keyPressEvent(self, event):
         """Handle key press events."""
@@ -171,6 +185,15 @@ class BipartiteFieldManager:
         """Update the colors in the bipartite field."""
         if self.bipartite_window:
             self.bipartite_window.updateColors(left_color, right_color)
+
+    def updateRadius(self, radius_pixels):
+        """Update the radius of the bipartite field circle.
+
+        Args:
+            radius_pixels (int): Radius in pixels. Must be positive.
+        """
+        if self.bipartite_window:
+            self.bipartite_window.updateRadius(radius_pixels)
 
     def closeWindow(self):
         """Close the bipartite field window."""
