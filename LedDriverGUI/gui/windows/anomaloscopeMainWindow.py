@@ -38,10 +38,10 @@ class TrialManager:
             ('experiment_date', self.experiment_info['experiment_date']),
             ('subject_id', trial_data['subject_id']),
             ('trial_number', trial_data['trial_number']),
-            ('yellow_luminance_percent', round(trial_data['yellow_luminance'], 2)),
-            ('red_green_ratio', round(trial_data['red_green_ratio'], 2)),
-            ('red_percentage', round(100.0 - trial_data['red_green_ratio'], 2)),
-            ('green_percentage', round(trial_data['red_green_ratio'], 2)),
+            ('yellow_luminance', trial_data['yellow_luminance']),
+            ('yellow_luminance_percent', round(trial_data['yellow_luminance']/65535 * 100, 2)),
+            ('red_green_ratio', trial_data['red_green_ratio']),
+            ('red_percentage', round(100.0 - trial_data['red_green_ratio']/65535 * 100, 2)),
             ('match_timestamp', trial_data['timestamp'])
         ])
 
@@ -810,8 +810,8 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         trial_data = {
             'subject_id': self.subject_id,
             'trial_number': self.current_trial,
-            'yellow_luminance': match_data['yellow_luminance'],
-            'red_green_ratio': match_data['red_green_ratio'],
+            'yellow_luminance': match_data['yellow_luminance'] + 32768,
+            'red_green_ratio': match_data['red_green_ratio'] + 32768,
             'timestamp': match_data['timestamp']
         }
 
