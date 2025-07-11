@@ -149,7 +149,7 @@ class AnomaloscopeController(QtCore.QObject):
         self.current_rate_index = 0
 
         # Currents for the LEDs
-        self.currents_GYR = [65535//4, 65535, int(65535//2/1.15)]
+        self.currents_GYR = [10000, 65535, 16811]  # int(65535//2/1.15 * 1.18) //2]
 
         # Track if encoders have been initialized
         self.encoders_initialized = False
@@ -507,7 +507,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         self.trials_input = QtWidgets.QSpinBox()
         self.trials_input.setRange(1, 100)
-        self.trials_input.setValue(3)
+        self.trials_input.setValue(10)
         setup_layout.addRow("Number of Trials:", self.trials_input)
 
         setup_group.setLayout(setup_layout)
@@ -520,14 +520,14 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         # Before trial adaptation duration
         self.before_trial_adaptation_input = QtWidgets.QSpinBox()
         self.before_trial_adaptation_input.setRange(1, 120)
-        self.before_trial_adaptation_input.setValue(5)
+        self.before_trial_adaptation_input.setValue(30)
         self.before_trial_adaptation_input.setSuffix(" s")
         timing_layout.addRow("Before trial adaptation (black):", self.before_trial_adaptation_input)
 
         # Stimulus time duration
         self.stimulus_time_input = QtWidgets.QSpinBox()
         self.stimulus_time_input.setRange(1, 120)
-        self.stimulus_time_input.setValue(2)
+        self.stimulus_time_input.setValue(5)
         self.stimulus_time_input.setSuffix(" s")
         timing_layout.addRow("Stimulus time (bipartite field):", self.stimulus_time_input)
 
@@ -543,8 +543,8 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.radius_pixels_input.setRange(10, 400)
         self.radius_pixels_input.setValue(53)
         self.radius_pixels_input.setSuffix(" px")
-        self.radius_pixels_input.setToolTip("Radius of the bipartite circle in pixels. PPD = 55.62")
-        timing_layout.addRow("Circle radius:", self.radius_pixels_input)
+        self.radius_pixels_input.setToolTip("Radius of the bipartite circle in pixels. PPD = 27.81")
+        timing_layout.addRow("Circle radius (PPD = 27.81):", self.radius_pixels_input)
 
         timing_group.setLayout(timing_layout)
         main_layout.addWidget(timing_group)
