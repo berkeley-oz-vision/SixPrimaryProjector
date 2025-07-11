@@ -541,7 +541,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         # Circle radius control
         self.radius_pixels_input = QtWidgets.QSpinBox()
         self.radius_pixels_input.setRange(10, 400)
-        self.radius_pixels_input.setValue(100)
+        self.radius_pixels_input.setValue(53)
         self.radius_pixels_input.setSuffix(" px")
         self.radius_pixels_input.setToolTip("Radius of the bipartite circle in pixels. PPD = 55.62")
         timing_layout.addRow("Circle radius:", self.radius_pixels_input)
