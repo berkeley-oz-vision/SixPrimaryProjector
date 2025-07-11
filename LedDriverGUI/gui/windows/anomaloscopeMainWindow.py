@@ -147,6 +147,10 @@ class AnomaloscopeController(QtCore.QObject):
         self.current_yellow_lum_int16 = 0  # 0-100%
         self.current_red_green_ratio_int16 = 0  # 0-100 (0=all red, 100=all green)
 
+        # Track previous values for limit detection
+        self.previous_yellow_lum_int16 = 0
+        self.previous_red_green_ratio_int16 = 0
+
         # Rate multipliers for encoder sensitivity
         self.rates = [100, 500, 1000]
         self.current_rate_index = 0
@@ -196,6 +200,9 @@ class AnomaloscopeController(QtCore.QObject):
         self.encoder_positions = {"Left": 0, "Right": 0}
         self.current_yellow_lum_int16 = 0
         self.current_red_green_ratio_int16 = 0
+        # Initialize previous values for limit detection
+        self.previous_yellow_lum_int16 = 0
+        self.previous_red_green_ratio_int16 = 0
         # Update the GUI's controller status dict to match
         self.gui.controller_status_dict["Encoder"]["Left"] = 0
         self.gui.controller_status_dict["Encoder"]["Right"] = 0
@@ -213,6 +220,9 @@ class AnomaloscopeController(QtCore.QObject):
         self.encoder_positions = {"Left": left_start, "Right": right_start}
         self.current_yellow_lum_int16 = left_start
         self.current_red_green_ratio_int16 = right_start
+        # Initialize previous values for limit detection
+        self.previous_yellow_lum_int16 = left_start
+        self.previous_red_green_ratio_int16 = right_start
         # Update the GUI's controller status dict to match
         self.gui.controller_status_dict["Encoder"]["Left"] = left_start
         self.gui.controller_status_dict["Encoder"]["Right"] = right_start
@@ -301,6 +311,10 @@ class AnomaloscopeController(QtCore.QObject):
         # Get current rate
         current_rate = self.rates[self.current_rate_index]
 
+        # Store previous values for limit detection
+        self.previous_yellow_lum_int16 = self.current_yellow_lum_int16
+        self.previous_red_green_ratio_int16 = self.current_red_green_ratio_int16
+
         # Calculate deltas and update LED values
         for side in ["Left", "Right"]:
             encoder_value = self.previous_encoder_values[side]
@@ -324,11 +338,35 @@ class AnomaloscopeController(QtCore.QObject):
             # Update encoder position
             self.encoder_positions[side] = encoder_value
 
+        # Check for limit conditions and beep if needed
+        self._check_and_beep_at_limits()
+
         # Schedule LED update with rate limiting
         self.schedule_led_update()
 
         # Emit values changed signal
         self.values_changed_signal.emit(self.get_current_values())
+
+    def _check_and_beep_at_limits(self):
+        """Check if encoders have reached their limits and beep if needed."""
+        # Check if yellow luminance reached upper limit (32767)
+        if (self.current_yellow_lum_int16 == 32767 and
+                self.previous_yellow_lum_int16 < 32767):
+            self._beep_at_limit("yellow luminance")
+
+        # Check if red-green ratio reached upper limit (32767)
+        if (self.current_red_green_ratio_int16 == 32767 and
+                self.previous_red_green_ratio_int16 < 32767):
+            self._beep_at_limit("red-green ratio")
+
+    def _beep_at_limit(self, limit_type):
+        """Play a beep sound when a limit is reached."""
+        print(f"Limit reached: {limit_type} at maximum")
+        # Play a sound (try QSound, fallback to system beep)
+        try:
+            QSound.play("/System/Library/Sounds/Glass.aiff")  # macOS system sound
+        except Exception:
+            QtWidgets.QApplication.beep()
 
     def schedule_led_update(self):
         """Schedule an LED update with rate limiting."""
