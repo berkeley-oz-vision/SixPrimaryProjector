@@ -527,14 +527,14 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         # Stimulus time duration
         self.stimulus_time_input = QtWidgets.QSpinBox()
         self.stimulus_time_input.setRange(1, 120)
-        self.stimulus_time_input.setValue(10)
+        self.stimulus_time_input.setValue(2)
         self.stimulus_time_input.setSuffix(" s")
         timing_layout.addRow("Stimulus time (bipartite field):", self.stimulus_time_input)
 
         # During trial adaptation duration
         self.during_trial_adaptation_input = QtWidgets.QSpinBox()
         self.during_trial_adaptation_input.setRange(1, 120)
-        self.during_trial_adaptation_input.setValue(3)
+        self.during_trial_adaptation_input.setValue(1)
         self.during_trial_adaptation_input.setSuffix(" s")
         timing_layout.addRow("During trial adaptation (black):", self.during_trial_adaptation_input)
 
