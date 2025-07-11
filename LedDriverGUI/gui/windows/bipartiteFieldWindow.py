@@ -97,6 +97,7 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         center_x = image_width // 2
         center_y = image_height // 2
         radius = int(min(image_width, image_height) // 6 / 2.5)  # Same relative size as before
+        radius = min(image_width, image_height) // 3
 
         # Create a circular path
         circle_path = QtGui.QPainterPath()
