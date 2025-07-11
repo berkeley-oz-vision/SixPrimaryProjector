@@ -533,7 +533,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # During trial adaptation duration
         self.during_trial_adaptation_input = QtWidgets.QSpinBox()
-        self.during_trial_adaptation_input.setRange(1, 120)
+        self.during_trial_adaptation_input.setRange(0, 120)
         self.during_trial_adaptation_input.setValue(1)
         self.during_trial_adaptation_input.setSuffix(" s")
         timing_layout.addRow("During trial adaptation (black):", self.during_trial_adaptation_input)
