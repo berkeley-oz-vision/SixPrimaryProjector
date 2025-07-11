@@ -538,6 +538,14 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.during_trial_adaptation_input.setSuffix(" s")
         timing_layout.addRow("During trial adaptation (black):", self.during_trial_adaptation_input)
 
+        # Circle radius control
+        self.radius_pixels_input = QtWidgets.QSpinBox()
+        self.radius_pixels_input.setRange(10, 400)
+        self.radius_pixels_input.setValue(100)
+        self.radius_pixels_input.setSuffix(" px")
+        self.radius_pixels_input.setToolTip("Radius of the bipartite circle in pixels. PPD = 55.62")
+        timing_layout.addRow("Circle radius:", self.radius_pixels_input)
+
         timing_group.setLayout(timing_layout)
         main_layout.addWidget(timing_group)
 
@@ -644,6 +652,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.controller_manager.values_changed_signal.connect(self.onValuesChanged)
         self.trial_completed_signal.connect(self.onTrialCompleted)
 
+        # Connect radius pixels input to update bipartite field
+        self.radius_pixels_input.valueChanged.connect(self.updateBipartiteRadius)
+
     def setStartingValuesSame(self):
         """Set both encoders to the same starting value."""
         self.controller_manager.setStartingValuesSame()
@@ -658,6 +669,12 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         """Update the rate display."""
         current_rate = self.controller_manager.getCurrentRate()
         self.rate_label.setText(f"{current_rate}x")
+
+    def updateBipartiteRadius(self):
+        """Update the radius of the bipartite field circle."""
+        if hasattr(self, 'bipartite_manager') and self.bipartite_manager.bipartite_window:
+            radius_pixels = self.radius_pixels_input.value()
+            self.bipartite_manager.updateRadius(radius_pixels)
 
     def startExperiment(self):
         """Start the anomaloscope experiment."""
@@ -679,6 +696,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.before_trial_adaptation_input.setEnabled(False)
         self.stimulus_time_input.setEnabled(False)
         self.during_trial_adaptation_input.setEnabled(False)
+        self.radius_pixels_input.setEnabled(False)
         self.discard_last_trial_button.setEnabled(False)
 
         # Setup progress bar
@@ -695,6 +713,11 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Create bipartite field window on second screen
         self.bipartite_manager.createBipartiteWindow()
+
+        # Set initial radius
+        if self.bipartite_manager.bipartite_window:
+            radius_pixels = self.radius_pixels_input.value()
+            self.bipartite_manager.updateRadius(radius_pixels)
 
         # Start first trial
         self.startNextTrial()
@@ -881,6 +904,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.before_trial_adaptation_input.setEnabled(True)
         self.stimulus_time_input.setEnabled(True)
         self.during_trial_adaptation_input.setEnabled(True)
+        self.radius_pixels_input.setEnabled(True)
         self.discard_last_trial_button.setEnabled(False)  # Keep disabled when experiment finishes
         self.progress_bar.setVisible(False)
 
