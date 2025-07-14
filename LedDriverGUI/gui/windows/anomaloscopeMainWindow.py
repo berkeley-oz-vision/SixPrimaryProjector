@@ -11,8 +11,10 @@ import winsound
 import threading
 from PyQt5.QtMultimedia import QSound
 
+
 def beep_sound(frequency):
     winsound.Beep(frequency, 750)
+
 
 class TrialManager:
     """Manages trial data collection and export for anomaloscope experiments."""
@@ -369,8 +371,8 @@ class AnomaloscopeController(QtCore.QObject):
                 self.previous_red_green_ratio_int16 < 32767):
             self._beep_at_limit("red top limit")
 
-        if(self.current_red_green_ratio_int16 == -32768 and
-            self.previous_red_green_ratio_int16 > -32768):
+        if (self.current_red_green_ratio_int16 == -32768 and
+                self.previous_red_green_ratio_int16 > -32768):
             self._beep_at_limit("green bottom limit")
 
     def _beep_at_limit(self, limit_type):
@@ -381,7 +383,6 @@ class AnomaloscopeController(QtCore.QObject):
         else:
             beep_thread = threading.Thread(target=lambda: beep_sound(800))
         beep_thread.start()
-
 
     def schedule_led_update(self):
         """Schedule an LED update with rate limiting."""
@@ -829,13 +830,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.current_trial += 1
         self.updateTrialDisplay()
 
-        # Only do before trial adaptation for the first trial
-        if self.current_trial == 1:
-            # Start before trial adaptation phase (only for first trial)
-            self._start_before_trial_adaptation()
-        else:
-            # For subsequent trials, start with during trial adaptation
-            self._start_during_trial_adaptation()
+        self._start_before_trial_adaptation()
 
     def _start_before_trial_adaptation(self):
         """Start the before trial adaptation phase (black field)."""
@@ -849,10 +844,14 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Disable controls
         self.controller_manager.disable_all_controls()
-
-        # Update status
-        duration = self.before_trial_adaptation_input.value()
-        self.status_label.setText(f"Initial adaptation (black field)... ({duration} s)")
+        # if first trial, do initial adaptation, otherwise do stimulus time
+        if self.current_trial == 1:
+            duration = self.before_trial_adaptation_input.value()
+            self.status_label.setText(f"Initial adaptation (black field)... ({duration} s)")
+        else:
+            duration = self.stimulus_time_input.value()
+            self.status_label.setText(
+                f"Stimulus time - Adjust controllers and press button when colors match ({duration} s)")
 
         # Start timer for next phase
         self.trial_loop_timer.start(duration * 1000)
