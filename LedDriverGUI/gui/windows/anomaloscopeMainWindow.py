@@ -4,10 +4,15 @@ import csv
 from collections import OrderedDict
 from PyQt5.QtCore import pyqtSignal
 from PyQt5 import QtGui, QtCore, QtWidgets
+from PyQt5.QtCore import QTimer, QThread
 from .bipartiteFieldWindow import BipartiteFieldManager
 import random
+import winsound
+import threading
 from PyQt5.QtMultimedia import QSound
 
+def beep_sound(frequency):
+    winsound.Beep(frequency, 750)
 
 class TrialManager:
     """Manages trial data collection and export for anomaloscope experiments."""
@@ -42,9 +47,9 @@ class TrialManager:
             ('yellow_luminance_percent', round(trial_data['yellow_luminance']/65535 * 100, 2)),
             ('red_amount', trial_data['red_green_ratio']),
             ('red_percentage', round(trial_data['red_green_ratio']/65535 * 100, 2)),
-            ('green_luminance_cd_m2', trial_data['green_luminance']),
-            ('yellow_luminance_cd_m2', trial_data['yellow_luminance_cd_m2']),
-            ('red_luminance_cd_m2', trial_data['red_luminance']),
+            ('green_luminance_cd_m2', trial_data['green_luminance_measurement']),
+            ('yellow_luminance_cd_m2', trial_data['yellow_luminance_measurement']),
+            ('red_luminance_cd_m2', trial_data['red_luminance_measurement']),
             ('match_timestamp', trial_data['timestamp'])
         ])
 
@@ -156,7 +161,7 @@ class AnomaloscopeController(QtCore.QObject):
         self.current_rate_index = 0
 
         # Currents for the LEDs
-        self.currents_GYR = [10000, 65535, 16811]  # int(65535//2/1.15 * 1.18) //2]
+        self.currents_GYR = [10000, 65535, 16811]  # int(65535//2/1.15 * 1.18) //2
 
         # Track if encoders have been initialized
         self.encoders_initialized = False
@@ -329,6 +334,7 @@ class AnomaloscopeController(QtCore.QObject):
                 led_delta = (delta * current_rate)  # Scale to percentage
                 self.current_yellow_lum_int16 = self.current_yellow_lum_int16 + led_delta
                 self.current_yellow_lum_int16 = max(-32768, min(32767, self.current_yellow_lum_int16))
+
             else:
                 # Right encoder controls red-green ratio (0-100)
                 led_delta = (delta * current_rate)  # Scale to percentage
@@ -352,21 +358,30 @@ class AnomaloscopeController(QtCore.QObject):
         # Check if yellow luminance reached upper limit (32767)
         if (self.current_yellow_lum_int16 == 32767 and
                 self.previous_yellow_lum_int16 < 32767):
-            self._beep_at_limit("yellow luminance")
+            self._beep_at_limit("yellow top limit")
+
+        if (self.current_yellow_lum_int16 == -32768
+                and self.previous_yellow_lum_int16 > -32768):
+            self._beep_at_limit("yellow bottom limit")
 
         # Check if red-green ratio reached upper limit (32767)
         if (self.current_red_green_ratio_int16 == 32767 and
                 self.previous_red_green_ratio_int16 < 32767):
-            self._beep_at_limit("red-green ratio")
+            self._beep_at_limit("red top limit")
+
+        if(self.current_red_green_ratio_int16 == -32768 and
+            self.previous_red_green_ratio_int16 > -32768):
+            self._beep_at_limit("green bottom limit")
 
     def _beep_at_limit(self, limit_type):
         """Play a beep sound when a limit is reached."""
         print(f"Limit reached: {limit_type} at maximum")
-        # Play a sound (try QSound, fallback to system beep)
-        try:
-            QSound.play("/System/Library/Sounds/Glass.aiff")  # macOS system sound
-        except Exception:
-            QtWidgets.QApplication.beep()
+        if "top" in limit_type:
+            beep_thread = threading.Thread(target=lambda: beep_sound(1200))
+        else:
+            beep_thread = threading.Thread(target=lambda: beep_sound(800))
+        beep_thread.start()
+
 
     def schedule_led_update(self):
         """Schedule an LED update with rate limiting."""
@@ -439,10 +454,8 @@ class AnomaloscopeController(QtCore.QObject):
         """Handle match acceptance (button press)."""
         self.disable_match_accept()
         # Play a sound (try QSound, fallback to system beep)
-        try:
-            QSound.play("/System/Library/Sounds/Glass.aiff")  # macOS system sound, change path as needed
-        except Exception:
-            QtWidgets.QApplication.beep()
+        beep_thread = threading.Thread(target=lambda: beep_sound(1000))
+        beep_thread.start()
         match_data = {
             'yellow_luminance': self.current_yellow_lum_int16,
             'red_green_ratio': self.current_red_green_ratio_int16,
