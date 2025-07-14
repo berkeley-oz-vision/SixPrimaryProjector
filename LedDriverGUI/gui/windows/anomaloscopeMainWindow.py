@@ -2,9 +2,8 @@ from datetime import datetime
 import os
 import csv
 from collections import OrderedDict
-from PyQt5.QtCore import pyqtSignal
 from PyQt5 import QtGui, QtCore, QtWidgets
-from PyQt5.QtCore import QTimer, QThread
+from PyQt5.QtCore import pyqtSignal, QTimer, QThread
 from .bipartiteFieldWindow import BipartiteFieldManager
 import random
 import winsound
@@ -52,6 +51,7 @@ class TrialManager:
             ('green_luminance_cd_m2', trial_data['green_luminance_measurement']),
             ('yellow_luminance_cd_m2', trial_data['yellow_luminance_measurement']),
             ('red_luminance_cd_m2', trial_data['red_luminance_measurement']),
+            ('viewing_mode', trial_data['viewing_mode']),
             ('match_timestamp', trial_data['timestamp'])
         ])
 
@@ -640,6 +640,35 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         luminance_group.setLayout(luminance_layout)
         main_layout.addWidget(luminance_group)
 
+        # Viewing Mode Section
+        viewing_group = QtWidgets.QGroupBox("Viewing Mode")
+        viewing_layout = QtWidgets.QHBoxLayout()
+
+        viewing_layout.addWidget(QtWidgets.QLabel("Viewing Mode:"))
+
+        self.viewing_mode_button = QtWidgets.QPushButton("Monocular")
+        self.viewing_mode_button.setCheckable(True)
+        self.viewing_mode_button.setChecked(True)  # Default to monocular
+        self.viewing_mode_button.clicked.connect(self.toggleViewingMode)
+        self.viewing_mode_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e6f3ff;
+                border: 2px solid #4da6ff;
+                border-radius: 5px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:checked {
+                background-color: #4da6ff;
+                color: white;
+            }
+        """)
+        viewing_layout.addWidget(self.viewing_mode_button)
+
+        viewing_layout.addStretch()
+        viewing_group.setLayout(viewing_layout)
+        main_layout.addWidget(viewing_group)
+
         # Control Buttons
         button_layout = QtWidgets.QHBoxLayout()
 
@@ -767,6 +796,36 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             radius_pixels = self.radius_pixels_input.value()
             self.bipartite_manager.updateRadius(radius_pixels)
 
+    def toggleViewingMode(self):
+        """Toggle between monocular and binocular viewing modes."""
+        if self.viewing_mode_button.isChecked():
+            self.viewing_mode_button.setText("Monocular")
+            self.viewing_mode_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #4da6ff;
+                    color: white;
+                    border: 2px solid #4da6ff;
+                    border-radius: 5px;
+                    padding: 8px;
+                    font-weight: bold;
+                }
+            """)
+        else:
+            self.viewing_mode_button.setText("Binocular")
+            self.viewing_mode_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #e6f3ff;
+                    border: 2px solid #4da6ff;
+                    border-radius: 5px;
+                    padding: 8px;
+                    font-weight: bold;
+                }
+            """)
+
+    def getViewingMode(self):
+        """Get the current viewing mode as a string."""
+        return "Monocular" if self.viewing_mode_button.isChecked() else "Binocular"
+
     def startExperiment(self):
         """Start the anomaloscope experiment."""
         # Validate inputs
@@ -796,6 +855,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.green_luminance_input.setEnabled(False)
         self.yellow_luminance_input.setEnabled(False)
         self.red_luminance_input.setEnabled(False)
+        self.viewing_mode_button.setEnabled(False)
         self.discard_last_trial_button.setEnabled(False)
 
         # Setup progress bar
@@ -940,6 +1000,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             'green_luminance_measurement': self.green_luminance,
             'yellow_luminance_measurement': self.yellow_luminance,
             'red_luminance_measurement': self.red_luminance,
+            'viewing_mode': self.getViewingMode(),
             'timestamp': match_data['timestamp']
         }
 
@@ -1013,6 +1074,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.green_luminance_input.setEnabled(True)
         self.yellow_luminance_input.setEnabled(True)
         self.red_luminance_input.setEnabled(True)
+        self.viewing_mode_button.setEnabled(True)
         self.discard_last_trial_button.setEnabled(False)  # Keep disabled when experiment finishes
         self.progress_bar.setVisible(False)
 
@@ -1047,6 +1109,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             f"Green Luminance: {trials[-1]['green_luminance_measurement']:.2f} cd/m²\n"
             f"Yellow Luminance: {trials[-1]['yellow_luminance_measurement']:.2f} cd/m²\n"
             f"Red Luminance: {trials[-1]['red_luminance_measurement']:.2f} cd/m²\n"
+            f"Viewing Mode: {trials[-1]['viewing_mode']}\n"
             f"Timestamp: {trials[-1]['match_timestamp']}",
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
         )
