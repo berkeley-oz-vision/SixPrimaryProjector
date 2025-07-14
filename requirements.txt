@@ -8,3 +8,4 @@ pyserial
 cobs
 pyautogui
 pyqtgraph
+Pillow

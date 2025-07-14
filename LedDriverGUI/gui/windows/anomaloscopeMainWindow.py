@@ -40,8 +40,11 @@ class TrialManager:
             ('trial_number', trial_data['trial_number']),
             ('yellow_luminance', trial_data['yellow_luminance']),
             ('yellow_luminance_percent', round(trial_data['yellow_luminance']/65535 * 100, 2)),
-            ('red_green_ratio', trial_data['red_green_ratio']),
-            ('red_percentage', round(100.0 - trial_data['red_green_ratio']/65535 * 100, 2)),
+            ('red_amount', trial_data['red_green_ratio']),
+            ('red_percentage', round(trial_data['red_green_ratio']/65535 * 100, 2)),
+            ('green_luminance_cd_m2', trial_data['green_luminance']),
+            ('yellow_luminance_cd_m2', trial_data['yellow_luminance_cd_m2']),
+            ('red_luminance_cd_m2', trial_data['red_luminance']),
             ('match_timestamp', trial_data['timestamp'])
         ])
 
@@ -144,12 +147,16 @@ class AnomaloscopeController(QtCore.QObject):
         self.current_yellow_lum_int16 = 0  # 0-100%
         self.current_red_green_ratio_int16 = 0  # 0-100 (0=all red, 100=all green)
 
+        # Track previous values for limit detection
+        self.previous_yellow_lum_int16 = 0
+        self.previous_red_green_ratio_int16 = 0
+
         # Rate multipliers for encoder sensitivity
         self.rates = [100, 500, 1000]
         self.current_rate_index = 0
 
         # Currents for the LEDs
-        self.currents_GYR = [10000, 65535, int(65535//2/1.15 * 1.18)//2]
+        self.currents_GYR = [10000, 65535, 16811]  # int(65535//2/1.15 * 1.18) //2
 
         # Track if encoders have been initialized
         self.encoders_initialized = False
@@ -193,6 +200,9 @@ class AnomaloscopeController(QtCore.QObject):
         self.encoder_positions = {"Left": 0, "Right": 0}
         self.current_yellow_lum_int16 = 0
         self.current_red_green_ratio_int16 = 0
+        # Initialize previous values for limit detection
+        self.previous_yellow_lum_int16 = 0
+        self.previous_red_green_ratio_int16 = 0
         # Update the GUI's controller status dict to match
         self.gui.controller_status_dict["Encoder"]["Left"] = 0
         self.gui.controller_status_dict["Encoder"]["Right"] = 0
@@ -210,6 +220,9 @@ class AnomaloscopeController(QtCore.QObject):
         self.encoder_positions = {"Left": left_start, "Right": right_start}
         self.current_yellow_lum_int16 = left_start
         self.current_red_green_ratio_int16 = right_start
+        # Initialize previous values for limit detection
+        self.previous_yellow_lum_int16 = left_start
+        self.previous_red_green_ratio_int16 = right_start
         # Update the GUI's controller status dict to match
         self.gui.controller_status_dict["Encoder"]["Left"] = left_start
         self.gui.controller_status_dict["Encoder"]["Right"] = right_start
@@ -298,6 +311,10 @@ class AnomaloscopeController(QtCore.QObject):
         # Get current rate
         current_rate = self.rates[self.current_rate_index]
 
+        # Store previous values for limit detection
+        self.previous_yellow_lum_int16 = self.current_yellow_lum_int16
+        self.previous_red_green_ratio_int16 = self.current_red_green_ratio_int16
+
         # Calculate deltas and update LED values
         for side in ["Left", "Right"]:
             encoder_value = self.previous_encoder_values[side]
@@ -321,11 +338,35 @@ class AnomaloscopeController(QtCore.QObject):
             # Update encoder position
             self.encoder_positions[side] = encoder_value
 
+        # Check for limit conditions and beep if needed
+        self._check_and_beep_at_limits()
+
         # Schedule LED update with rate limiting
         self.schedule_led_update()
 
         # Emit values changed signal
         self.values_changed_signal.emit(self.get_current_values())
+
+    def _check_and_beep_at_limits(self):
+        """Check if encoders have reached their limits and beep if needed."""
+        # Check if yellow luminance reached upper limit (32767)
+        if (self.current_yellow_lum_int16 == 32767 and
+                self.previous_yellow_lum_int16 < 32767):
+            self._beep_at_limit("yellow luminance")
+
+        # Check if red-green ratio reached upper limit (32767)
+        if (self.current_red_green_ratio_int16 == 32767 and
+                self.previous_red_green_ratio_int16 < 32767):
+            self._beep_at_limit("red-green ratio")
+
+    def _beep_at_limit(self, limit_type):
+        """Play a beep sound when a limit is reached."""
+        print(f"Limit reached: {limit_type} at maximum")
+        # Play a sound (try QSound, fallback to system beep)
+        try:
+            QSound.play("/System/Library/Sounds/Glass.aiff")  # macOS system sound
+        except Exception:
+            QtWidgets.QApplication.beep()
 
     def schedule_led_update(self):
         """Schedule an LED update with rate limiting."""
@@ -463,6 +504,11 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             'yellow_board': 2    # Board controlling yellow LED
         }
 
+        # Luminance values for LEDs (default values)
+        self.green_luminance = 1.76
+        self.yellow_luminance = 3.45
+        self.red_luminance = 1.65
+
         # Trial management
         self.trial_manager = TrialManager()
         self.controller_manager = AnomaloscopeController(self.gui, self.led_config)
@@ -507,7 +553,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         self.trials_input = QtWidgets.QSpinBox()
         self.trials_input.setRange(1, 100)
-        self.trials_input.setValue(3)
+        self.trials_input.setValue(10)
         setup_layout.addRow("Number of Trials:", self.trials_input)
 
         setup_group.setLayout(setup_layout)
@@ -520,14 +566,14 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         # Before trial adaptation duration
         self.before_trial_adaptation_input = QtWidgets.QSpinBox()
         self.before_trial_adaptation_input.setRange(1, 120)
-        self.before_trial_adaptation_input.setValue(5)
+        self.before_trial_adaptation_input.setValue(30)
         self.before_trial_adaptation_input.setSuffix(" s")
         timing_layout.addRow("Before trial adaptation (black):", self.before_trial_adaptation_input)
 
         # Stimulus time duration
         self.stimulus_time_input = QtWidgets.QSpinBox()
         self.stimulus_time_input.setRange(1, 120)
-        self.stimulus_time_input.setValue(2)
+        self.stimulus_time_input.setValue(5)
         self.stimulus_time_input.setSuffix(" s")
         timing_layout.addRow("Stimulus time (bipartite field):", self.stimulus_time_input)
 
@@ -543,11 +589,42 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.radius_pixels_input.setRange(10, 400)
         self.radius_pixels_input.setValue(53)
         self.radius_pixels_input.setSuffix(" px")
-        self.radius_pixels_input.setToolTip("Radius of the bipartite circle in pixels. PPD = 55.62")
-        timing_layout.addRow("Circle radius:", self.radius_pixels_input)
+        self.radius_pixels_input.setToolTip("Radius of the bipartite circle in pixels. PPD = 27.81")
+        timing_layout.addRow("Circle radius (PPD = 27.81):", self.radius_pixels_input)
 
         timing_group.setLayout(timing_layout)
         main_layout.addWidget(timing_group)
+
+        # Luminance Controls Section
+        luminance_group = QtWidgets.QGroupBox("LED Luminance Settings")
+        luminance_layout = QtWidgets.QFormLayout()
+
+        # Green luminance
+        self.green_luminance_input = QtWidgets.QDoubleSpinBox()
+        self.green_luminance_input.setRange(0.1, 10.0)
+        self.green_luminance_input.setValue(1.76)
+        self.green_luminance_input.setDecimals(2)
+        self.green_luminance_input.setSuffix(" cd/m²")
+        luminance_layout.addRow("Green Luminance:", self.green_luminance_input)
+
+        # Yellow luminance
+        self.yellow_luminance_input = QtWidgets.QDoubleSpinBox()
+        self.yellow_luminance_input.setRange(0.1, 10.0)
+        self.yellow_luminance_input.setValue(3.45)
+        self.yellow_luminance_input.setDecimals(2)
+        self.yellow_luminance_input.setSuffix(" cd/m²")
+        luminance_layout.addRow("Yellow Luminance:", self.yellow_luminance_input)
+
+        # Red luminance
+        self.red_luminance_input = QtWidgets.QDoubleSpinBox()
+        self.red_luminance_input.setRange(0.1, 10.0)
+        self.red_luminance_input.setValue(1.65)
+        self.red_luminance_input.setDecimals(2)
+        self.red_luminance_input.setSuffix(" cd/m²")
+        luminance_layout.addRow("Red Luminance:", self.red_luminance_input)
+
+        luminance_group.setLayout(luminance_layout)
+        main_layout.addWidget(luminance_group)
 
         # Control Buttons
         button_layout = QtWidgets.QHBoxLayout()
@@ -687,6 +764,11 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.total_trials = self.trials_input.value()
         self.current_trial = 0
 
+        # Update luminance values from UI
+        self.green_luminance = self.green_luminance_input.value()
+        self.yellow_luminance = self.yellow_luminance_input.value()
+        self.red_luminance = self.red_luminance_input.value()
+
         # Setup UI for experiment
         self.experiment_active = True
         self.start_button.setEnabled(False)
@@ -697,6 +779,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.stimulus_time_input.setEnabled(False)
         self.during_trial_adaptation_input.setEnabled(False)
         self.radius_pixels_input.setEnabled(False)
+        self.green_luminance_input.setEnabled(False)
+        self.yellow_luminance_input.setEnabled(False)
+        self.red_luminance_input.setEnabled(False)
         self.discard_last_trial_button.setEnabled(False)
 
         # Setup progress bar
@@ -835,6 +920,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             'trial_number': self.current_trial,
             'yellow_luminance': match_data['yellow_luminance'] + 32768,
             'red_green_ratio': match_data['red_green_ratio'] + 32768,
+            'green_luminance_measurement': self.green_luminance,
+            'yellow_luminance_measurement': self.yellow_luminance,
+            'red_luminance_measurement': self.red_luminance,
             'timestamp': match_data['timestamp']
         }
 
@@ -905,6 +993,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.stimulus_time_input.setEnabled(True)
         self.during_trial_adaptation_input.setEnabled(True)
         self.radius_pixels_input.setEnabled(True)
+        self.green_luminance_input.setEnabled(True)
+        self.yellow_luminance_input.setEnabled(True)
+        self.red_luminance_input.setEnabled(True)
         self.discard_last_trial_button.setEnabled(False)  # Keep disabled when experiment finishes
         self.progress_bar.setVisible(False)
 
@@ -936,6 +1027,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             f"Trial data:\n"
             f"Yellow Luminance: {trials[-1]['yellow_luminance_percent']:.1f}%\n"
             f"Red:Green Ratio: {trials[-1]['red_green_ratio']:.1f}%\n"
+            f"Green Luminance: {trials[-1]['green_luminance_measurement']:.2f} cd/m²\n"
+            f"Yellow Luminance: {trials[-1]['yellow_luminance_measurement']:.2f} cd/m²\n"
+            f"Red Luminance: {trials[-1]['red_luminance_measurement']:.2f} cd/m²\n"
             f"Timestamp: {trials[-1]['match_timestamp']}",
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
         )
