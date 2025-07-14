@@ -568,7 +568,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.before_trial_adaptation_input.setRange(1, 120)
         self.before_trial_adaptation_input.setValue(30)
         self.before_trial_adaptation_input.setSuffix(" s")
-        timing_layout.addRow("Before trial adaptation (black):", self.before_trial_adaptation_input)
+        timing_layout.addRow("Initial adaptation (black):", self.before_trial_adaptation_input)
 
         # Stimulus time duration
         self.stimulus_time_input = QtWidgets.QSpinBox()
@@ -582,7 +582,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.during_trial_adaptation_input.setRange(0, 120)
         self.during_trial_adaptation_input.setValue(1)
         self.during_trial_adaptation_input.setSuffix(" s")
-        timing_layout.addRow("During trial adaptation (black):", self.during_trial_adaptation_input)
+        timing_layout.addRow("Between matches and during trial adaptation (black):", self.during_trial_adaptation_input)
 
         # Circle radius control
         self.radius_pixels_input = QtWidgets.QSpinBox()
@@ -816,8 +816,13 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.current_trial += 1
         self.updateTrialDisplay()
 
-        # Start before trial adaptation phase
-        self._start_before_trial_adaptation()
+        # Only do before trial adaptation for the first trial
+        if self.current_trial == 1:
+            # Start before trial adaptation phase (only for first trial)
+            self._start_before_trial_adaptation()
+        else:
+            # For subsequent trials, start with during trial adaptation
+            self._start_during_trial_adaptation()
 
     def _start_before_trial_adaptation(self):
         """Start the before trial adaptation phase (black field)."""
@@ -834,7 +839,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Update status
         duration = self.before_trial_adaptation_input.value()
-        self.status_label.setText(f"Before trial adaptation (black field)... ({duration} s)")
+        self.status_label.setText(f"Initial adaptation (black field)... ({duration} s)")
 
         # Start timer for next phase
         self.trial_loop_timer.start(duration * 1000)
@@ -879,7 +884,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Update status
         duration = self.during_trial_adaptation_input.value()
-        self.status_label.setText(f"During trial adaptation (black field)... ({duration} s)")
+        self.status_label.setText(f"Between matches and during trial adaptation (black field)... ({duration} s)")
 
         # Start timer for next phase
         self.trial_loop_timer.start(duration * 1000)
