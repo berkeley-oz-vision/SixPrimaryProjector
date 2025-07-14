@@ -950,7 +950,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             duration = self.before_trial_adaptation_input.value()
             self.status_label.setText(f"Initial adaptation (black field)... ({duration} s)")
         else:
-            duration = self.stimulus_time_input.value()
+            duration = self.during_trial_adaptation_input.value()
             self.status_label.setText(
                 f"Stimulus time - Adjust controllers and press button when colors match ({duration} s)")
 
