@@ -6,13 +6,24 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal, QTimer, QThread
 from .bipartiteFieldWindow import BipartiteFieldManager
 import random
-import winsound
 import threading
+import platform
 from PyQt5.QtMultimedia import QSound
+
+# Conditional import for winsound (Windows only)
+if platform.system() == "Windows":
+    import winsound
+else:
+    winsound = None
 
 
 def beep_sound(frequency):
-    winsound.Beep(frequency, 750)
+    if winsound is not None:
+        winsound.Beep(frequency, 750)
+    else:
+        # On macOS, we can use a simple print or system command
+        # For now, just print a message - you could also use os.system("afplay /System/Library/Sounds/Tink.aiff")
+        print(f"Beep sound at frequency {frequency}Hz (not implemented on macOS)")
 
 
 class TrialManager:
