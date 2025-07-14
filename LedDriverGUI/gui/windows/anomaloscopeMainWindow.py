@@ -149,7 +149,7 @@ class AnomaloscopeController(QtCore.QObject):
         self.current_rate_index = 0
 
         # Currents for the LEDs
-        self.currents_GYR = [65535//4, 65535, int(65535//2/1.15)]
+        self.currents_GYR = [10000, 65535, int(65535//2/1.15 * 1.18)//2]
 
         # Track if encoders have been initialized
         self.encoders_initialized = False
