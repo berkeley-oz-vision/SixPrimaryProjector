@@ -52,6 +52,8 @@ class TrialManager:
             ('yellow_luminance_cd_m2', trial_data['yellow_luminance_measurement']),
             ('red_luminance_cd_m2', trial_data['red_luminance_measurement']),
             ('viewing_mode', trial_data['viewing_mode']),
+            ('randomization_mode', trial_data.get('randomization_mode', 'Fixed')),
+            ('color_assignment', trial_data.get('color_assignment', 0)),
             ('match_timestamp', trial_data['timestamp'])
         ])
 
@@ -534,6 +536,10 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.total_trials = 0
         self.subject_id = ""
 
+        # Bipartite field randomization state
+        self.randomization_enabled = False
+        self.current_color_assignment = 0  # 0: green top, magenta bottom; 1: magenta top, green bottom
+
         # Trial loop state
         self.current_trial_state = self.BEFORE_TRIAL_ADAPTATION
         self.trial_loop_timer = QtCore.QTimer()
@@ -668,6 +674,35 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         viewing_layout.addStretch()
         viewing_group.setLayout(viewing_layout)
         main_layout.addWidget(viewing_group)
+
+        # Bipartite Field Randomization Section
+        randomization_group = QtWidgets.QGroupBox("Bipartite Field Randomization")
+        randomization_layout = QtWidgets.QHBoxLayout()
+
+        randomization_layout.addWidget(QtWidgets.QLabel("Color Assignment:"))
+
+        self.randomization_button = QtWidgets.QPushButton("Fixed")
+        self.randomization_button.setCheckable(True)
+        self.randomization_button.setChecked(True)  # Default to fixed
+        self.randomization_button.clicked.connect(self.toggleRandomization)
+        self.randomization_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e6f3ff;
+                border: 2px solid #4da6ff;
+                border-radius: 5px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:checked {
+                background-color: #4da6ff;
+                color: white;
+            }
+        """)
+        randomization_layout.addWidget(self.randomization_button)
+
+        randomization_layout.addStretch()
+        randomization_group.setLayout(randomization_layout)
+        main_layout.addWidget(randomization_group)
 
         # Control Buttons
         button_layout = QtWidgets.QHBoxLayout()
@@ -826,6 +861,57 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         """Get the current viewing mode as a string."""
         return "Monocular" if self.viewing_mode_button.isChecked() else "Binocular"
 
+    def toggleRandomization(self):
+        """Toggle between fixed and randomized color assignment."""
+        if self.randomization_button.isChecked():
+            self.randomization_button.setText("Randomized")
+            self.randomization_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #4da6ff;
+                    color: white;
+                    border: 2px solid #4da6ff;
+                    border-radius: 5px;
+                    padding: 8px;
+                    font-weight: bold;
+                }
+            """)
+            self.randomization_enabled = True
+        else:
+            self.randomization_button.setText("Fixed")
+            self.randomization_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #e6f3ff;
+                    border: 2px solid #4da6ff;
+                    border-radius: 5px;
+                    padding: 8px;
+                    font-weight: bold;
+                }
+            """)
+            self.randomization_enabled = False
+
+    def getRandomizationMode(self):
+        """Get the current randomization mode as a string."""
+        return "Randomized" if self.randomization_enabled else "Fixed"
+
+    def randomizeColorAssignment(self):
+        """Randomly assign colors to top and bottom halves."""
+        if self.randomization_enabled:
+            self.current_color_assignment = random.randint(0, 1)
+        else:
+            self.current_color_assignment = 0  # Default fixed assignment
+
+    def getBipartiteColors(self):
+        """Get the current color assignment for the bipartite field."""
+        green_color = [0, 255, 0]    # Green
+        magenta_color = [255, 0, 255]  # Magenta
+
+        if self.current_color_assignment == 0:
+            # Green top, magenta bottom (default)
+            return green_color, magenta_color
+        else:
+            # Magenta top, green bottom (swapped)
+            return magenta_color, green_color
+
     def startExperiment(self):
         """Start the anomaloscope experiment."""
         # Validate inputs
@@ -856,6 +942,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.yellow_luminance_input.setEnabled(False)
         self.red_luminance_input.setEnabled(False)
         self.viewing_mode_button.setEnabled(False)
+        self.randomization_button.setEnabled(False)
         self.discard_last_trial_button.setEnabled(False)
 
         # Setup progress bar
@@ -920,10 +1007,15 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         """Start the stimulus time phase (bipartite field visible)."""
         self.current_trial_state = self.STIMULUS_TIME
 
-        # Show bipartite field (restore colors)
+        # Randomize color assignment if this is the first stimulus presentation of a trial
+        if randomize_controls:
+            self.randomizeColorAssignment()
+
+        # Show bipartite field with current color assignment
         if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
-            self.bipartite_manager.bipartite_window.left_color = [0, 255, 0]
-            self.bipartite_manager.bipartite_window.right_color = [255, 0, 255]
+            left_color, right_color = self.getBipartiteColors()
+            self.bipartite_manager.bipartite_window.left_color = left_color
+            self.bipartite_manager.bipartite_window.right_color = right_color
             self.bipartite_manager.bipartite_window.update()
 
         # Randomize controls only on first stimulus presentation of a trial
@@ -1001,6 +1093,8 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             'yellow_luminance_measurement': self.yellow_luminance,
             'red_luminance_measurement': self.red_luminance,
             'viewing_mode': self.getViewingMode(),
+            'randomization_mode': self.getRandomizationMode(),
+            'color_assignment': self.current_color_assignment,  # 0: green top, 1: magenta top
             'timestamp': match_data['timestamp']
         }
 
@@ -1075,6 +1169,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.yellow_luminance_input.setEnabled(True)
         self.red_luminance_input.setEnabled(True)
         self.viewing_mode_button.setEnabled(True)
+        self.randomization_button.setEnabled(True)
         self.discard_last_trial_button.setEnabled(False)  # Keep disabled when experiment finishes
         self.progress_bar.setVisible(False)
 
@@ -1100,6 +1195,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         last_trial_number = trials[-1]['trial_number']
 
         # Confirm with user
+        color_assignment_text = "Green top, Magenta bottom" if trials[-1]['color_assignment'] == 0 else "Magenta top, Green bottom"
         reply = QtWidgets.QMessageBox.question(
             self, "Discard Trial",
             f"Are you sure you want to discard trial {last_trial_number}?\n\n"
@@ -1110,6 +1206,8 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             f"Yellow Luminance: {trials[-1]['yellow_luminance_measurement']:.2f} cd/m²\n"
             f"Red Luminance: {trials[-1]['red_luminance_measurement']:.2f} cd/m²\n"
             f"Viewing Mode: {trials[-1]['viewing_mode']}\n"
+            f"Randomization Mode: {trials[-1]['randomization_mode']}\n"
+            f"Color Assignment: {color_assignment_text}\n"
             f"Timestamp: {trials[-1]['match_timestamp']}",
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
         )
