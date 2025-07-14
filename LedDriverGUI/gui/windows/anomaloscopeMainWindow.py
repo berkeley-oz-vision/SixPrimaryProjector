@@ -659,59 +659,43 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Viewing Mode Section
         viewing_group = QtWidgets.QGroupBox("Viewing Mode")
-        viewing_layout = QtWidgets.QHBoxLayout()
+        viewing_layout = QtWidgets.QVBoxLayout()
 
-        viewing_layout.addWidget(QtWidgets.QLabel("Viewing Mode:"))
+        self.viewing_mode_group = QtWidgets.QButtonGroup()
 
-        self.viewing_mode_button = QtWidgets.QPushButton("Monocular")
-        self.viewing_mode_button.setCheckable(True)
-        self.viewing_mode_button.setChecked(True)  # Default to monocular
-        self.viewing_mode_button.clicked.connect(self.toggleViewingMode)
-        self.viewing_mode_button.setStyleSheet("""
-            QPushButton {
-                background-color: #e6f3ff;
-                border: 2px solid #4da6ff;
-                border-radius: 5px;
-                padding: 8px;
-                font-weight: bold;
-            }
-            QPushButton:checked {
-                background-color: #4da6ff;
-                color: white;
-            }
-        """)
-        viewing_layout.addWidget(self.viewing_mode_button)
+        self.monocular_radio = QtWidgets.QRadioButton("Monocular")
+        self.monocular_radio.setChecked(True)  # Default to monocular
+        self.monocular_radio.toggled.connect(self.onViewingModeChanged)
 
-        viewing_layout.addStretch()
+        self.binocular_radio = QtWidgets.QRadioButton("Binocular")
+        self.binocular_radio.toggled.connect(self.onViewingModeChanged)
+
+        self.viewing_mode_group.addButton(self.monocular_radio)
+        self.viewing_mode_group.addButton(self.binocular_radio)
+
+        viewing_layout.addWidget(self.monocular_radio)
+        viewing_layout.addWidget(self.binocular_radio)
         viewing_group.setLayout(viewing_layout)
         main_layout.addWidget(viewing_group)
 
         # Bipartite Field Randomization Section
         randomization_group = QtWidgets.QGroupBox("Bipartite Field Randomization")
-        randomization_layout = QtWidgets.QHBoxLayout()
+        randomization_layout = QtWidgets.QVBoxLayout()
 
-        randomization_layout.addWidget(QtWidgets.QLabel("Color Assignment:"))
+        self.randomization_group = QtWidgets.QButtonGroup()
 
-        self.randomization_button = QtWidgets.QPushButton("Fixed")
-        self.randomization_button.setCheckable(True)
-        self.randomization_button.setChecked(True)  # Default to fixed
-        self.randomization_button.clicked.connect(self.toggleRandomization)
-        self.randomization_button.setStyleSheet("""
-            QPushButton {
-                background-color: #e6f3ff;
-                border: 2px solid #4da6ff;
-                border-radius: 5px;
-                padding: 8px;
-                font-weight: bold;
-            }
-            QPushButton:checked {
-                background-color: #4da6ff;
-                color: white;
-            }
-        """)
-        randomization_layout.addWidget(self.randomization_button)
+        self.fixed_radio = QtWidgets.QRadioButton("Fixed")
+        self.fixed_radio.setChecked(True)  # Default to fixed
+        self.fixed_radio.toggled.connect(self.onRandomizationChanged)
 
-        randomization_layout.addStretch()
+        self.randomized_radio = QtWidgets.QRadioButton("Randomized")
+        self.randomized_radio.toggled.connect(self.onRandomizationChanged)
+
+        self.randomization_group.addButton(self.fixed_radio)
+        self.randomization_group.addButton(self.randomized_radio)
+
+        randomization_layout.addWidget(self.fixed_radio)
+        randomization_layout.addWidget(self.randomized_radio)
         randomization_group.setLayout(randomization_layout)
         main_layout.addWidget(randomization_group)
 
@@ -842,67 +826,24 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             radius_pixels = self.radius_pixels_input.value()
             self.bipartite_manager.updateRadius(radius_pixels)
 
-    def toggleViewingMode(self):
-        """Toggle between monocular and binocular viewing modes."""
-        if self.viewing_mode_button.isChecked():
-            self.viewing_mode_button.setText("Monocular")
-            self.viewing_mode_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #4da6ff;
-                    color: white;
-                    border: 2px solid #4da6ff;
-                    border-radius: 5px;
-                    padding: 8px;
-                    font-weight: bold;
-                }
-            """)
-        else:
-            self.viewing_mode_button.setText("Binocular")
-            self.viewing_mode_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #e6f3ff;
-                    border: 2px solid #4da6ff;
-                    border-radius: 5px;
-                    padding: 8px;
-                    font-weight: bold;
-                }
-            """)
+    def onViewingModeChanged(self):
+        """Handle viewing mode radio button changes."""
+        # This method is called when radio buttons are toggled
+        # The state is automatically managed by the radio button group
+        pass
 
     def getViewingMode(self):
         """Get the current viewing mode as a string."""
-        return "Monocular" if self.viewing_mode_button.isChecked() else "Binocular"
+        return "Monocular" if self.monocular_radio.isChecked() else "Binocular"
 
-    def toggleRandomization(self):
-        """Toggle between fixed and randomized color assignment."""
-        if self.randomization_button.isChecked():
-            self.randomization_button.setText("Randomized")
-            self.randomization_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #4da6ff;
-                    color: white;
-                    border: 2px solid #4da6ff;
-                    border-radius: 5px;
-                    padding: 8px;
-                    font-weight: bold;
-                }
-            """)
-            self.randomization_enabled = True
-        else:
-            self.randomization_button.setText("Fixed")
-            self.randomization_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #e6f3ff;
-                    border: 2px solid #4da6ff;
-                    border-radius: 5px;
-                    padding: 8px;
-                    font-weight: bold;
-                }
-            """)
-            self.randomization_enabled = False
+    def onRandomizationChanged(self):
+        """Handle randomization radio button changes."""
+        # Update the randomization_enabled flag based on radio button state
+        self.randomization_enabled = self.randomized_radio.isChecked()
 
     def getRandomizationMode(self):
         """Get the current randomization mode as a string."""
-        return "Randomized" if self.randomization_enabled else "Fixed"
+        return "Randomized" if self.randomized_radio.isChecked() else "Fixed"
 
     def randomizeColorAssignment(self):
         """Randomly assign colors to top and bottom halves."""
@@ -952,8 +893,10 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.green_luminance_input.setEnabled(False)
         self.yellow_luminance_input.setEnabled(False)
         self.red_luminance_input.setEnabled(False)
-        self.viewing_mode_button.setEnabled(False)
-        self.randomization_button.setEnabled(False)
+        self.monocular_radio.setEnabled(False)
+        self.binocular_radio.setEnabled(False)
+        self.fixed_radio.setEnabled(False)
+        self.randomized_radio.setEnabled(False)
         self.discard_last_trial_button.setEnabled(False)
 
         # Setup progress bar
@@ -1179,8 +1122,10 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.green_luminance_input.setEnabled(True)
         self.yellow_luminance_input.setEnabled(True)
         self.red_luminance_input.setEnabled(True)
-        self.viewing_mode_button.setEnabled(True)
-        self.randomization_button.setEnabled(True)
+        self.monocular_radio.setEnabled(True)
+        self.binocular_radio.setEnabled(True)
+        self.fixed_radio.setEnabled(True)
+        self.randomized_radio.setEnabled(True)
         self.discard_last_trial_button.setEnabled(False)  # Keep disabled when experiment finishes
         self.progress_bar.setVisible(False)
 
