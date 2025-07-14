@@ -550,6 +550,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         # Bipartite field randomization state
         self.randomization_enabled = False
         self.current_color_assignment = 0  # 0: green top, magenta bottom; 1: magenta top, green bottom
+        self.color_assignments = []  # Pre-generated balanced color assignments for all trials
 
         # Trial loop state
         self.current_trial_state = self.BEFORE_TRIAL_ADAPTATION
@@ -846,11 +847,40 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         return "Randomized" if self.randomized_radio.isChecked() else "Fixed"
 
     def randomizeColorAssignment(self):
-        """Randomly assign colors to top and bottom halves."""
-        if self.randomization_enabled:
-            self.current_color_assignment = random.randint(0, 1)
+        """Assign colors to top and bottom halves using balanced randomization."""
+        if self.randomization_enabled and self.color_assignments:
+            # Use pre-generated balanced assignment for current trial
+            trial_index = self.current_trial - 1  # Convert to 0-based index
+            if trial_index < len(self.color_assignments):
+                self.current_color_assignment = self.color_assignments[trial_index]
+            else:
+                # Fallback to random if somehow we're beyond our pre-generated assignments
+                self.current_color_assignment = random.randint(0, 1)
         else:
             self.current_color_assignment = 0  # Default fixed assignment
+
+    def _generate_balanced_color_assignments(self):
+        """Generate balanced color assignments for all trials."""
+        total_trials = self.total_trials
+        half_trials = total_trials // 2
+
+        # Create a list with half 0s (green top) and half 1s (magenta top)
+        assignments = [0] * half_trials + [1] * half_trials
+
+        # If odd number of trials, add one more of the less frequent assignment
+        if total_trials % 2 == 1:
+            # Add one more assignment to make it balanced
+            if len([x for x in assignments if x == 0]) <= len([x for x in assignments if x == 1]):
+                assignments.append(0)  # Add green top
+            else:
+                assignments.append(1)  # Add magenta top
+
+        # Shuffle the assignments to randomize the order
+        random.shuffle(assignments)
+        self.color_assignments = assignments
+
+        print(f"Generated balanced color assignments: {assignments}")
+        print(f"Green top trials: {assignments.count(0)}, Magenta top trials: {assignments.count(1)}")
 
     def getBipartiteColors(self):
         """Get the current color assignment for the bipartite field."""
@@ -907,6 +937,12 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Initialize trial manager
         self.trial_manager.initialize_experiment(self.subject_id, self.total_trials)
+
+        # Pre-generate balanced color assignments if randomization is enabled
+        if self.randomization_enabled:
+            self._generate_balanced_color_assignments()
+        else:
+            self.color_assignments = []
 
         # Start controller monitoring
         self.controller_manager.start_monitoring()
