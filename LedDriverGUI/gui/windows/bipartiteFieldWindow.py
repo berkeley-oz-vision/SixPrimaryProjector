@@ -1,4 +1,5 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QGraphicsBlurEffect
 from screeninfo import get_monitors
 from PIL import Image, ImageDraw
@@ -49,13 +50,16 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
                          screen_geometry.width, screen_geometry.height)
 
         # Set window flags for fullscreen
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
         # Show fullscreen
         self.showFullScreen()
 
         # Set up the display
         self.setupDisplay()
+
+        self.trial_number = None
+        self.total_trials = None
 
     def setupDisplay(self):
         """Set up the bipartite field display."""
@@ -87,6 +91,12 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
 
         return image
 
+    def setTrialInfo(self, trial_number, total_trials):
+        """Set the current trial number and total trials for display."""
+        self.trial_number = trial_number
+        self.total_trials = total_trials
+        self.update()
+
     def paintEvent(self, event):
         """Custom paint event with PIL-based rendering and proper resizing."""
         painter = QtGui.QPainter(self)
@@ -114,6 +124,24 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
         # Draw the resized image to the window
         painter.drawImage(0, 0, qimage)
 
+        # Draw trial number in lower left corner if set
+        if self.trial_number is not None and self.total_trials is not None:
+            text = f"{self.trial_number}/{self.total_trials}"
+            font = QtGui.QFont()
+            font.setPointSize(32)
+            font.setBold(True)
+            painter.setFont(font)
+            color = QtGui.QColor(0, 255, 0)
+            painter.setPen(color)
+            margin = 30
+            # Calculate position: lower left, with margin
+            metrics = QtGui.QFontMetrics(font)
+            text_width = metrics.horizontalAdvance(text)
+            text_height = metrics.height()
+            x = margin
+            y = window_height - margin
+            painter.drawText(x, y, text)
+
     def updateColors(self, left_color, right_color):
         """Update the colors of the bipartite field."""
         self.left_color = left_color
@@ -132,9 +160,9 @@ class BipartiteFieldWindow(QtWidgets.QWidget):
 
     def keyPressEvent(self, event):
         """Handle key press events."""
-        if event.key() == QtCore.Qt.Key_Escape:
+        if event.key() == Qt.Key_Escape:
             self.close()
-        elif event.key() == QtCore.Qt.Key_F11:
+        elif event.key() == Qt.Key_F11:
             # Toggle fullscreen
             if self.isFullScreen():
                 self.showNormal()

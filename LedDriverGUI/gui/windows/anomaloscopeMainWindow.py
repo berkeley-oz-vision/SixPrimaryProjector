@@ -1004,6 +1004,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         # Show bipartite field with current color assignment
         if hasattr(self.bipartite_manager, 'bipartite_window') and self.bipartite_manager.bipartite_window:
             left_color, right_color = self.getBipartiteColors()
+            self.bipartite_manager.bipartite_window.setTrialInfo(self.current_trial, self.total_trials)
             self.bipartite_manager.bipartite_window.left_color = left_color
             self.bipartite_manager.bipartite_window.right_color = right_color
             self.bipartite_manager.bipartite_window.update()
