@@ -149,10 +149,11 @@ class AnomaloscopeController(QtCore.QObject):
     match_accepted_signal = QtCore.pyqtSignal(dict)
     values_changed_signal = QtCore.pyqtSignal(dict)
 
-    def __init__(self, gui, led_config):
+    def __init__(self, gui, led_config, main_window):
         super(AnomaloscopeController, self).__init__()
         self.gui = gui
         self.led_config = led_config
+        self.main_window = main_window
 
         # Controller state
         self.monitoring = False
@@ -335,7 +336,20 @@ class AnomaloscopeController(QtCore.QObject):
         self.previous_yellow_lum_int16 = self.current_yellow_lum_int16
         self.previous_red_green_ratio_int16 = self.current_red_green_ratio_int16
 
-        # Calculate deltas and update LED values
+        # Check if spatial controls are enabled
+        spatial_controls = getattr(self.main_window, 'spatial_controls_enabled', False)
+        current_color_assignment = getattr(self.main_window, 'current_color_assignment', 0)
+
+        def apply_delta_to_yellow_lum(delta):
+            led_delta = (delta * current_rate)  # Scale to percentage
+            self.current_yellow_lum_int16 = self.current_yellow_lum_int16 + led_delta
+            self.current_yellow_lum_int16 = max(-32768, min(32767, self.current_yellow_lum_int16))
+
+        def apply_delta_to_red_green_ratio(delta):
+            led_delta = (delta * current_rate)  # Scale to percentage
+            self.current_red_green_ratio_int16 = self.current_red_green_ratio_int16 + led_delta
+            self.current_red_green_ratio_int16 = max(-32768, min(32767, self.current_red_green_ratio_int16))
+
         for side in ["Left", "Right"]:
             encoder_value = self.previous_encoder_values[side]
             previous_position = self.encoder_positions[side]
@@ -343,20 +357,20 @@ class AnomaloscopeController(QtCore.QObject):
             # Calculate delta (handle wrap-around)
             delta = encoder_value - previous_position
 
-            # Apply rate and update LED value
-            if side == "Left":
-                # Left encoder controls yellow luminance (0-100%)
-                led_delta = (delta * current_rate)  # Scale to percentage
-                self.current_yellow_lum_int16 = self.current_yellow_lum_int16 + led_delta
-                self.current_yellow_lum_int16 = max(-32768, min(32767, self.current_yellow_lum_int16))
+            # Get current color assignment and spatial controls flag from main_window
+            current_color_assignment = getattr(self.main_window, 'current_color_assignment', 0)
+            spatial_controls_enabled = getattr(self.main_window, 'spatial_controls_enabled', False)
 
+            if spatial_controls_enabled:
+                # Spatial control mapping: controls map to whatever color is in their spatial position
+                if current_color_assignment == 0:  # normal
+                    apply_delta_to_yellow_lum(delta) if side == "Left" else apply_delta_to_red_green_ratio(delta)
+                else:
+                    apply_delta_to_yellow_lum(delta) if side == "Right" else apply_delta_to_red_green_ratio(delta)
             else:
-                # Right encoder controls red-green ratio (0-100)
-                led_delta = (delta * current_rate)  # Scale to percentage
-                self.current_red_green_ratio_int16 = self.current_red_green_ratio_int16 + led_delta
-                self.current_red_green_ratio_int16 = max(-32768, min(32767, self.current_red_green_ratio_int16))
+                apply_delta_to_yellow_lum(delta) if side == "Left" else apply_delta_to_red_green_ratio(delta)
 
-            # Update encoder position
+                # Update encoder position
             self.encoder_positions[side] = encoder_value
 
         # Check for limit conditions and beep if needed
@@ -538,7 +552,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
 
         # Trial management
         self.trial_manager = TrialManager()
-        self.controller_manager = AnomaloscopeController(self.gui, self.led_config)
+        self.controller_manager = AnomaloscopeController(self.gui, self.led_config, self)
         self.bipartite_manager = BipartiteFieldManager()
 
         # Experiment state
@@ -551,6 +565,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.randomization_enabled = False
         self.current_color_assignment = 0  # 0: green top, magenta bottom; 1: magenta top, green bottom
         self.color_assignments = []  # Pre-generated balanced color assignments for all trials
+
+        # Control mapping state
+        self.spatial_controls_enabled = False  # False: fixed controls, True: spatial controls
 
         # Trial loop state
         self.current_trial_state = self.BEFORE_TRIAL_ADAPTATION
@@ -658,6 +675,9 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         luminance_group.setLayout(luminance_layout)
         main_layout.addWidget(luminance_group)
 
+        # Viewing Mode and Bipartite Field Randomization Section (Side by Side)
+        options_layout = QtWidgets.QHBoxLayout()
+
         # Viewing Mode Section
         viewing_group = QtWidgets.QGroupBox("Viewing Mode")
         viewing_layout = QtWidgets.QVBoxLayout()
@@ -677,7 +697,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         viewing_layout.addWidget(self.monocular_radio)
         viewing_layout.addWidget(self.binocular_radio)
         viewing_group.setLayout(viewing_layout)
-        main_layout.addWidget(viewing_group)
+        options_layout.addWidget(viewing_group)
 
         # Bipartite Field Randomization Section
         randomization_group = QtWidgets.QGroupBox("Bipartite Field Randomization")
@@ -698,7 +718,30 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         randomization_layout.addWidget(self.fixed_radio)
         randomization_layout.addWidget(self.randomized_radio)
         randomization_group.setLayout(randomization_layout)
-        main_layout.addWidget(randomization_group)
+        options_layout.addWidget(randomization_group)
+
+        # Control Mapping Section
+        control_mapping_group = QtWidgets.QGroupBox("Control Mapping")
+        control_mapping_layout = QtWidgets.QVBoxLayout()
+
+        self.control_mapping_group = QtWidgets.QButtonGroup()
+
+        self.fixed_controls_radio = QtWidgets.QRadioButton("Fixed Controls")
+        self.fixed_controls_radio.setChecked(True)  # Default to fixed controls
+        self.fixed_controls_radio.toggled.connect(self.onControlMappingChanged)
+
+        self.spatial_controls_radio = QtWidgets.QRadioButton("Spatial Controls")
+        self.spatial_controls_radio.toggled.connect(self.onControlMappingChanged)
+
+        self.control_mapping_group.addButton(self.fixed_controls_radio)
+        self.control_mapping_group.addButton(self.spatial_controls_radio)
+
+        control_mapping_layout.addWidget(self.fixed_controls_radio)
+        control_mapping_layout.addWidget(self.spatial_controls_radio)
+        control_mapping_group.setLayout(control_mapping_layout)
+        options_layout.addWidget(control_mapping_group)
+
+        main_layout.addLayout(options_layout)
 
         # Control Buttons
         button_layout = QtWidgets.QHBoxLayout()
@@ -846,6 +889,19 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         """Get the current randomization mode as a string."""
         return "Randomized" if self.randomized_radio.isChecked() else "Fixed"
 
+    def onControlMappingChanged(self):
+        """Handle control mapping radio button changes."""
+        # Update the spatial_controls_enabled flag based on radio button state
+        self.spatial_controls_enabled = self.spatial_controls_radio.isChecked()
+
+    def getControlMappingMode(self):
+        """Get the current control mapping mode as a string."""
+        return "Fixed Controls" if self.fixed_controls_radio.isChecked() else "Spatial Controls"
+
+    def getCurrentColorAssignment(self):
+        """Get the current color assignment for spatial control mapping."""
+        return self.current_color_assignment
+
     def randomizeColorAssignment(self):
         """Assign colors to top and bottom halves using balanced randomization."""
         if self.randomization_enabled and self.color_assignments:
@@ -927,6 +983,8 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.binocular_radio.setEnabled(False)
         self.fixed_radio.setEnabled(False)
         self.randomized_radio.setEnabled(False)
+        self.fixed_controls_radio.setEnabled(False)
+        self.spatial_controls_radio.setEnabled(False)
         self.discard_last_trial_button.setEnabled(False)
 
         # Setup progress bar
@@ -1085,6 +1143,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             'red_luminance_measurement': self.red_luminance,
             'viewing_mode': self.getViewingMode(),
             'randomization_mode': self.getRandomizationMode(),
+            'control_mapping_mode': self.getControlMappingMode(),
             'color_assignment': self.current_color_assignment,  # 0: green top, 1: magenta top
             'timestamp': match_data['timestamp']
         }
@@ -1163,6 +1222,8 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
         self.binocular_radio.setEnabled(True)
         self.fixed_radio.setEnabled(True)
         self.randomized_radio.setEnabled(True)
+        self.fixed_controls_radio.setEnabled(True)
+        self.spatial_controls_radio.setEnabled(True)
         self.discard_last_trial_button.setEnabled(False)  # Keep disabled when experiment finishes
         self.progress_bar.setVisible(False)
 
@@ -1200,6 +1261,7 @@ class AnomaloscopeWindow(QtWidgets.QWidget):
             f"Red Luminance: {trials[-1]['red_luminance_measurement']:.2f} cd/m²\n"
             f"Viewing Mode: {trials[-1]['viewing_mode']}\n"
             f"Randomization Mode: {trials[-1]['randomization_mode']}\n"
+            f"Control Mapping Mode: {trials[-1]['control_mapping_mode']}\n"
             f"Color Assignment: {color_assignment_text}\n"
             f"Timestamp: {trials[-1]['match_timestamp']}",
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
