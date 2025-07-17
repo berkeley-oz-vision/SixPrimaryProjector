@@ -1,6 +1,8 @@
 # Repostory Specific
 
 measurements/*
+plots/*
+anomaloscope_data/*
 
 # Mac
 *.DS_Store
