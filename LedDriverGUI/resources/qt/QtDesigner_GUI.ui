@@ -607,7 +607,7 @@
                <string>Select the active sync mode to configure</string>
               </property>
               <property name="currentIndex">
-               <number>3</number>
+               <number>4</number>
               </property>
               <widget class="QWidget" name="sync_digital_page">
                <property name="geometry">
@@ -1517,11 +1517,11 @@
                          <property name="columnCount">
                           <number>4</number>
                          </property>
-                         <attribute name="verticalHeaderMinimumSectionSize">
-                          <number>23</number>
-                         </attribute>
                          <attribute name="verticalHeaderDefaultSectionSize">
                           <number>25</number>
+                         </attribute>
+                         <attribute name="verticalHeaderMinimumSectionSize">
+                          <number>23</number>
                          </attribute>
                          <row/>
                          <row/>
@@ -3396,7 +3396,7 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
                 <string>Stream LED intensity changes to driver over USB</string>
                </property>
                <attribute name="label">
-                <string>Controller</string>
+                <string>Anomaloscope</string>
                </attribute>
                <layout class="QGridLayout" name="gridLayout_67">
                 <item row="2" column="0" colspan="2">
@@ -3537,15 +3537,15 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
                 <rect>
                  <x>0</x>
                  <y>0</y>
-                 <width>230</width>
-                 <height>35</height>
+                 <width>588</width>
+                 <height>480</height>
                 </rect>
                </property>
                <property name="toolTip">
                 <string>Use custom written LED sync function in the LED driver code</string>
                </property>
                <attribute name="label">
-                <string>Custom</string>
+                <string>Tetrachromatic Display</string>
                </attribute>
                <layout class="QGridLayout" name="gridLayout_27">
                 <item row="0" column="0" alignment="Qt::AlignTop">
@@ -3599,7 +3599,7 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>589</width>
+             <width>436</width>
              <height>1011</height>
             </rect>
            </property>
@@ -4889,51 +4889,50 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
         </item>
        </layout>
       </widget>
-
       <widget class="QWidget" name="calibration_tab">
        <attribute name="title">
         <string>Calibration</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_46">
         <item row="0" column="0">
-            <widget class="QPushButton" name="lut_calibration_button">
-            <property name="toolTip">
-                <string>Run through all the bitmasks and calibrate with the last values as the starting points</string>
-            </property>
-            <property name="text">
-                <string>Run Finetune Calibration</string>
-            </property>
-            </widget>
+         <widget class="QPushButton" name="lut_calibration_button">
+          <property name="toolTip">
+           <string>Run through all the bitmasks and calibrate with the last values as the starting points</string>
+          </property>
+          <property name="text">
+           <string>Run Finetune Calibration</string>
+          </property>
+         </widget>
         </item>
         <item row="1" column="0">
-            <widget class="QPushButton" name="measure_bitmasks_button">
-            <property name="toolTip">
-                <string>Run through all the bitmasks and make sure they're relatively close to the original measurements.</string>
-            </property>
-            <property name="text">
-                <string>QC - Measure All Bitmasks</string>
-            </property>
-            </widget>
+         <widget class="QPushButton" name="measure_bitmasks_button">
+          <property name="toolTip">
+           <string>Run through all the bitmasks and make sure they're relatively close to the original measurements.</string>
+          </property>
+          <property name="text">
+           <string>QC - Measure All Bitmasks</string>
+          </property>
+         </widget>
         </item>
         <item row="2" column="0">
-            <widget class="QPushButton" name="measure_gamma_button">
-            <property name="toolTip">
-                <string>Measure the Gamma Curve.</string>
-            </property>
-            <property name="text">
-                <string>QC - Measure Gamma Curve</string>
-            </property>
-            </widget>
+         <widget class="QPushButton" name="measure_gamma_button">
+          <property name="toolTip">
+           <string>Measure the Gamma Curve.</string>
+          </property>
+          <property name="text">
+           <string>QC - Measure Gamma Curve</string>
+          </property>
+         </widget>
         </item>
         <item row="3" column="0">
-            <widget class="QPushButton" name="measure_spectrums_button">
-            <property name="toolTip">
-                <string>Measure spectrums per led</string>
-            </property>
-            <property name="text">
-                <string>QC - Measure Spectrums</string>
-            </property>
-            </widget>
+         <widget class="QPushButton" name="measure_spectrums_button">
+          <property name="toolTip">
+           <string>Measure spectrums per led</string>
+          </property>
+          <property name="text">
+           <string>QC - Measure Spectrums</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -4943,24 +4942,24 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
        </attribute>
        <layout class="QGridLayout" name="gridLayout_46">
         <item row="0" column="0">
-            <widget class="QPushButton" name="anomaloscope_start_button">
-            <property name="toolTip">
-                <string>Anomaloscope Matching Task</string>
-            </property>
-            <property name="text">
-                <string>Start Anomaloscope Matching Task</string>
-            </property>
-            </widget>
+         <widget class="QPushButton" name="anomaloscope_start_button">
+          <property name="toolTip">
+           <string>Anomaloscope Matching Task</string>
+          </property>
+          <property name="text">
+           <string>Start Anomaloscope Matching Task</string>
+          </property>
+         </widget>
         </item>
         <item row="1" column="0">
-            <widget class="QPushButton" name="test_bens_code_button">
-            <property name="toolTip">
-                <string>Ben Test Status Packet</string>
-            </property>
-            <property name="text">
-                <string>Status Packet</string>
-            </property>
-            </widget>
+         <widget class="QPushButton" name="test_bens_code_button">
+          <property name="toolTip">
+           <string>Ben Test Status Packet</string>
+          </property>
+          <property name="text">
+           <string>Status Packet</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -5233,23 +5232,23 @@ This input is clamped to 0-3.3V, and is rated for -3V to +6V max. A small negati
   </property>
  </designerdata>
  <buttongroups>
-  <buttongroup name="sync_confocal_scan_mode_button_group"/>
+  <buttongroup name="configure_pushbutton_LED_button_group"/>
+  <buttongroup name="main_toggle_control_group"/>
   <buttongroup name="sync_confocal_line_analog_polarity_button_group"/>
   <buttongroup name="sync_digital_trigger_high_channel_button_group"/>
-  <buttongroup name="main_intensity_button_group"/>
-  <buttongroup name="sync_analog_board1_channel_button_group"/>
   <buttongroup name="sync_confocal_shutter_polarity_button_group"/>
-  <buttongroup name="sync_confocal_line_digital_polarity_button_group"/>
-  <buttongroup name="sync_confocal_standby_LED_channel_button_group"/>
-  <buttongroup name="main_toggle_control_group"/>
-  <buttongroup name="configure_pushbutton_LED_button_group"/>
-  <buttongroup name="sync_confocal_scanning_LED_channel_button_group"/>
-  <buttongroup name="sync_digital_trigger_button_group"/>
   <buttongroup name="main_channel_button_group"/>
-  <buttongroup name="sync_analog_board2_channel_button_group"/>
   <buttongroup name="sync_digital_trigger_low_channel_button_group"/>
+  <buttongroup name="sync_confocal_scan_mode_button_group"/>
+  <buttongroup name="sync_confocal_line_input_button_group"/>
+  <buttongroup name="sync_confocal_standby_LED_channel_button_group"/>
   <buttongroup name="configure_indication_group"/>
   <buttongroup name="sync_analog_board3_channel_button_group"/>
-  <buttongroup name="sync_confocal_line_input_button_group"/>
+  <buttongroup name="sync_analog_board1_channel_button_group"/>
+  <buttongroup name="sync_confocal_line_digital_polarity_button_group"/>
+  <buttongroup name="sync_digital_trigger_button_group"/>
+  <buttongroup name="sync_analog_board2_channel_button_group"/>
+  <buttongroup name="sync_confocal_scanning_LED_channel_button_group"/>
+  <buttongroup name="main_intensity_button_group"/>
  </buttongroups>
 </ui>
