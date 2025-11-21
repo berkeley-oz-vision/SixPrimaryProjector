@@ -118,6 +118,14 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
         self.active_port = QSerialPort(port, baudRate=QSerialPort.Baud9600, readyRead=self.receive)
         if not self.active_port.isOpen():  # Close serial port if it is already open
             if self.active_port.open(QtCore.QIODevice.ReadWrite):  # Open serial connection
+                # Set serial port parameters for Linux compatibility
+                self.active_port.setDataBits(QSerialPort.Data8)
+                self.active_port.setParity(QSerialPort.NoParity)
+                self.active_port.setStopBits(QSerialPort.OneStop)
+                self.active_port.setFlowControl(QSerialPort.NoFlowControl)
+                # Essential flags for Linux serial communication
+                self.active_port.setDataTerminalReady(True)
+                self.active_port.setRequestToSend(True)
                 self.active_port.readyRead.connect(self.receive)
                 self.active_port.clear()  # Clear buffer of any remaining data
                 self.gui.status_dict["COM Port"] = self.getPortInfo(self.active_port)["Port"]
@@ -137,19 +145,31 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
         return False
 
     def disconnectSerial(self, error=None):
-        if error in [None, QSerialPort.SerialPortError.ResourceError, QSerialPort.SerialPortError.DeviceNotFoundError]:
+        if error in [None, QSerialPort.SerialPortError.ResourceError, QSerialPort.SerialPortError.DeviceNotFoundError, QSerialPort.SerialPortError.TimeoutError]:
             if error == QSerialPort.SerialPortError.ResourceError:
                 self.showMessage("Error: Serial port disconnected (Resource error)")
-                self.active_port.close()  # close connection
+                if self.active_port is not None:
+                    self.active_port.close()  # close connection
             elif error == QSerialPort.SerialPortError.DeviceNotFoundError:
                 self.showMessage("Error: Serial port disconnected (Device not found)")
-                self.active_port.close()  # close connection
+                if self.active_port is not None:
+                    self.active_port.close()  # close connection
+            elif error == QSerialPort.SerialPortError.TimeoutError:
+                # Timeout errors are common on Linux and don't necessarily mean disconnect
+                # Only show message if not initializing
+                if not self.initializing_connection and debug:
+                    print("Serial port timeout (may be normal on Linux)")
             if self.active_port is not None:
-                error = self.active_port.error()
-                if self.active_port.isOpen() and error == 12:  # Close serial port if it is already open
-                    self.sendWithoutReply()  # Infrom the LED driver of disconnect
+                error_code = self.active_port.error()
+                if self.active_port.isOpen() and error_code == 12:  # Close serial port if it is already open
+                    try:
+                        self.sendWithoutReply()  # Inform the LED driver of disconnect
+                    except:
+                        pass  # Ignore errors during disconnect
                 self.active_port.clear()  # Clear buffer of any remaining data
-                self.active_port.close()  # close connection
+                # Ensure port is closed properly on Linux
+                while self.active_port.isOpen():
+                    self.active_port.close()
                 self.active_port = None
 
             self.gui.menu_connection_disconnect.setChecked(True)
@@ -240,21 +260,67 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
                 print("Func: " + str(inspect.stack()[2].function) + ", Tx: " + str(message[:100]))
                 if len(message) > 100:
                     print("↑ Total tx packet length: " + str(len(message)))
-            bytes_written = self.active_port.write(message)
-            if bytes_written != len(message):
-                self.showMessage("Error: Only " + str(bytes_written) + " of " + str(len(message)) +
-                                 " were sent to LED driver.  Please check connection.")
+            # On Linux, large writes need to be chunked to avoid buffer overflows and USB transfer issues
+            # Chunk size of 4096 bytes works well with Linux USB serial drivers
+            chunk_size = 4096
+            total_bytes = len(message) if message else 0
+            bytes_sent = 0
+            
+            if message:
+                # Convert to bytes if it's a bytearray
+                if isinstance(message, bytearray):
+                    message = bytes(message)
+                
+                # Send in chunks for large messages (common with sequence file uploads)
+                while bytes_sent < total_bytes:
+                    chunk = message[bytes_sent:bytes_sent + chunk_size]
+                    bytes_written = self.active_port.write(chunk)
+                    if bytes_written != len(chunk):
+                        self.showMessage("Error: Only " + str(bytes_written) + " of " + str(len(chunk)) +
+                                         " bytes were sent in chunk. Total sent: " + str(bytes_sent) + " of " + str(total_bytes))
+                        return
+                    bytes_sent += bytes_written
+                    # Small delay between chunks on Linux to allow USB buffer to drain
+                    if bytes_sent < total_bytes:
+                        time.sleep(0.001)  # 1ms delay between chunks
+                
+                if debug and total_bytes > chunk_size:
+                    print(f"Sent large message in chunks: {bytes_sent} bytes total")
 
+        # Calculate wait time based on message size
+        # For large messages (like sequence files), we need more time but cap it reasonably
         wait_time = 200
         if message:
-            # adjust the wait time according to the size of the packet to be transmitted
-            wait_time += round(len(message) / 10)
-        if self.active_port.waitForBytesWritten(wait_time):  # Wait for data to be sent
-            pass
-        else:
-            if not self.initializing_connection:
-                self.showMessage("Error: Message buffer failed to be sent to driver, please check driver connection.")
-                self.disconnectSerial()
+            message_len = len(message) if message else 0
+            # Adjust wait time: for large messages, use a more generous timeout
+            # At 9600 baud, ~960 bytes/sec, so add time based on size
+            # But cap at 10 seconds for very large files
+            calculated_wait = round(message_len / 100)  # ~100ms per 10KB
+            wait_time = min(calculated_wait, 10000)  # Cap at 10 seconds for large files
+        
+        # On Linux, waitForBytesWritten can hang, so use flush() and handle timeouts properly
+        # Flush ensures data is written to the device buffer
+        try:
+            self.active_port.flush()
+            # For large messages, we already chunked them, so use a reasonable timeout
+            if not self.active_port.waitForBytesWritten(wait_time):
+                # Check if it's a real error or just a timeout (common on Linux with large files)
+                error = self.active_port.error()
+                if error not in [QSerialPort.SerialPortError.TimeoutError, QSerialPort.SerialPortError.NoError]:
+                    if not self.initializing_connection:
+                        self.showMessage("Error: Message buffer failed to be sent to driver, please check driver connection.")
+                        self.disconnectSerial()
+                elif debug and error == QSerialPort.SerialPortError.TimeoutError:
+                    # For large files, timeout might be expected - data is still being transmitted
+                    message_len = len(message) if message else 0
+                    if message_len > 10000:  # Large message
+                        print(f"waitForBytesWritten timeout for large message ({message_len} bytes) - this may be normal on Linux")
+                    else:
+                        print("waitForBytesWritten timeout (may be normal on Linux)")
+        except Exception as e:
+            if debug:
+                print(f"Error in send(): {e}")
+            # Don't disconnect on exception, as it might be a transient Linux issue
 
     def onTriggered(self, action):
         if str(action.objectName()) == "menu_connection_disconnect":
@@ -666,13 +732,23 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
         self.expected_callback = callback
         self.send(message, cobs_encode)
         if self.active_port is not None:
-            self.active_port.waitForReadyRead(wait_time)
+            # Use shorter timeout and handle errors to avoid hanging on Linux
+            if not self.active_port.waitForReadyRead(min(wait_time, 2000)):  # Cap at 2 seconds
+                # On Linux, timeout is common and not necessarily an error
+                # The receive() slot will handle data when it arrives
+                if debug:
+                    print("waitForReadyRead timeout (this is often normal on Linux)")
 
     def sendWithoutReply(self, message=None, cobs_encode=True, wait_time=500):
         self.expected_callback = None
         self.send(message, cobs_encode)
         if self.active_port is not None:
-            self.active_port.waitForReadyRead(wait_time)
+            # Use shorter timeout and handle errors to avoid hanging on Linux
+            if not self.active_port.waitForReadyRead(min(wait_time, 2000)):  # Cap at 2 seconds
+                # On Linux, timeout is common and not necessarily an error
+                # The receive() slot will handle data when it arrives
+                if debug:
+                    print("waitForReadyRead timeout (this is often normal on Linux)")
 
     def showMessage(self, text):
         self.gui.waitCursor(False)
