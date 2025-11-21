@@ -162,7 +162,7 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
             
             # Safely close the port without infinite loops
             try:
-                if self.active_port.isOpen():
+                if self.active_port is not None and self.active_port.isOpen():
                     error_code = self.active_port.error()
                     # Only try to send disconnect message if port is in a good state
                     # Skip if we're already getting errors or during initialization
@@ -281,6 +281,9 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
             # CRITICAL: Combine COBS-encoded packet and NULL framing byte into a single write
             # On Linux, separate writes can be split into different USB transfers, causing
             # the device to receive incomplete packets. This ensures atomic transmission.
+            # Check if port is still connected before writing
+            if self.active_port is None:
+                return  # Port was disconnected during packet preparation
             cobs_packet = cobs.encode(bytes(packet))
             complete_packet = bytes(cobs_packet) + bytes(1)  # COBS packet + NULL byte
             bytes_written = self.active_port.write(complete_packet)
@@ -306,6 +309,10 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
                 
                 # Send in chunks for large messages (common with sequence file uploads)
                 while bytes_sent < total_bytes:
+                    # Check if port is still connected before each chunk
+                    if self.active_port is None:
+                        self.showMessage("Error: Port disconnected during chunked write. Sent " + str(bytes_sent) + " of " + str(total_bytes) + " bytes.")
+                        return
                     chunk = message[bytes_sent:bytes_sent + chunk_size]
                     bytes_written = self.active_port.write(chunk)
                     if bytes_written != len(chunk):
@@ -333,10 +340,17 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
         
         # On Linux, waitForBytesWritten can hang, so use flush() and handle timeouts properly
         # Flush ensures data is written to the device buffer
+        # Check if port is still connected before proceeding
+        if self.active_port is None:
+            return  # Port was disconnected during send operation
+        
         try:
             self.active_port.flush()
             # For large messages, we already chunked them, so use a reasonable timeout
             if not self.active_port.waitForBytesWritten(wait_time):
+                # Check if port is still connected before accessing error()
+                if self.active_port is None:
+                    return  # Port was disconnected during wait
                 # Check if it's a real error or just a timeout (common on Linux with large files)
                 error = self.active_port.error()
                 if error not in [QSerialPort.SerialPortError.TimeoutError, QSerialPort.SerialPortError.NoError]:
@@ -350,6 +364,11 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
                         print(f"waitForBytesWritten timeout for large message ({message_len} bytes) - this may be normal on Linux")
                     else:
                         print("waitForBytesWritten timeout (may be normal on Linux)")
+        except AttributeError as e:
+            # Port was set to None during operation
+            if debug:
+                print(f"Port disconnected during send(): {e}")
+            return
         except Exception as e:
             if debug:
                 print(f"Error in send(): {e}")
