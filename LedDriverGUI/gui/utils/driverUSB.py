@@ -75,6 +75,10 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
 
     # https://forum.pjrc.com/threads/25295-Automatically-find-a-Teensy-Board-with-Python-and-PySerial
     def getDriverPort(self, on_boot=False):
+        # Clear lists at start to avoid stale entries from previous searches
+        self.com_list_teensy = []
+        self.com_list_custom = []
+        
         for self.port in list(QSerialPortInfo.availablePorts()):
             port_info = self.getPortInfo(self.port)
             # Search for COM ports that have correct vendor and product IDs
@@ -92,7 +96,23 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
                 port_list = self.com_list_custom
             for port_info in port_list:
                 if self.connectSerial(port_info["Port"]):
+                    # Set flag to track if driver was found
+                    initial_menu_count = len(self.gui.menu_connection.actions())
                     self.magicNumberCheck()
+                    # Wait for magic number reply and driver ID to be processed
+                    # The reply comes asynchronously through receive(), so we need to wait
+                    if self.active_port is not None:
+                        # Wait for the magic number reply (up to 1000ms)
+                        self.active_port.waitForReadyRead(1000)
+                        # Process events to allow receive() to process the reply
+                        QtCore.QCoreApplication.processEvents()
+                        # Wait for driver ID response (downloadDriverId adds menu item)
+                        # Check multiple times to see if menu was updated
+                        for _ in range(10):  # Check up to 10 times
+                            QtCore.QCoreApplication.processEvents()
+                            if len(self.gui.menu_connection.actions()) > initial_menu_count:
+                                break  # Driver ID was received and menu updated
+                            time.sleep(0.05)  # 50ms between checks
                     self.uploadTime()
                     self.disconnectSerial()
         if on_boot:  # On boot, automatically connect to the first driver in the menu
@@ -140,7 +160,13 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
 
         # except: #Return False if unable to establish connection to serial port
         if debug:
-            print("Failed to connect to COM port, with QSerialPort Error #" + str(self.active_port.error()))
+            if self.active_port is not None:
+                try:
+                    print("Failed to connect to COM port, with QSerialPort Error #" + str(self.active_port.error()))
+                except:
+                    print("Failed to connect to COM port (unable to get error code)")
+            else:
+                print("Failed to connect to COM port (port is None)")
         self.disconnectSerial()
         return False
 
