@@ -145,31 +145,64 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
         return False
 
     def disconnectSerial(self, error=None):
+        # Early return if already disconnected
+        if self.active_port is None:
+            return
+            
         if error in [None, QSerialPort.SerialPortError.ResourceError, QSerialPort.SerialPortError.DeviceNotFoundError, QSerialPort.SerialPortError.TimeoutError]:
             if error == QSerialPort.SerialPortError.ResourceError:
                 self.showMessage("Error: Serial port disconnected (Resource error)")
-                if self.active_port is not None:
-                    self.active_port.close()  # close connection
             elif error == QSerialPort.SerialPortError.DeviceNotFoundError:
                 self.showMessage("Error: Serial port disconnected (Device not found)")
-                if self.active_port is not None:
-                    self.active_port.close()  # close connection
             elif error == QSerialPort.SerialPortError.TimeoutError:
                 # Timeout errors are common on Linux and don't necessarily mean disconnect
                 # Only show message if not initializing
                 if not self.initializing_connection and debug:
                     print("Serial port timeout (may be normal on Linux)")
-            if self.active_port is not None:
-                error_code = self.active_port.error()
-                if self.active_port.isOpen() and error_code == 12:  # Close serial port if it is already open
+            
+            # Safely close the port without infinite loops
+            try:
+                if self.active_port.isOpen():
+                    error_code = self.active_port.error()
+                    # Only try to send disconnect message if port is in a good state
+                    # Skip if we're already getting errors or during initialization
+                    if error_code == 12 and not self.initializing_connection:
+                        try:
+                            # Use a very short timeout to avoid hanging
+                            self.sendWithoutReply(None, True, 10)  # 10ms timeout
+                        except:
+                            pass  # Ignore errors during disconnect
+                    
+                    # Clear buffer before closing
                     try:
-                        self.sendWithoutReply()  # Inform the LED driver of disconnect
+                        self.active_port.clear()
                     except:
-                        pass  # Ignore errors during disconnect
-                self.active_port.clear()  # Clear buffer of any remaining data
-                # Ensure port is closed properly on Linux
-                while self.active_port.isOpen():
+                        pass
+                    
+                    # Close the port - don't use infinite loop, just try once
+                    # On Linux, close() may not be immediate, but it will complete
                     self.active_port.close()
+                    
+                    # Give it a moment to close, but don't wait indefinitely
+                    # Check a few times with small delay, then give up
+                    max_attempts = 10
+                    for _ in range(max_attempts):
+                        if not self.active_port.isOpen():
+                            break
+                        time.sleep(0.01)  # 10ms delay
+                    else:
+                        # If still open after attempts, force close and move on
+                        if debug:
+                            print("Warning: Port did not close immediately, forcing close")
+                        try:
+                            self.active_port.close()
+                        except:
+                            pass
+            except Exception as e:
+                if debug:
+                    print(f"Error during disconnectSerial: {e}")
+            finally:
+                # Always set to None, even if close had issues
                 self.active_port = None
 
             self.gui.menu_connection_disconnect.setChecked(True)
