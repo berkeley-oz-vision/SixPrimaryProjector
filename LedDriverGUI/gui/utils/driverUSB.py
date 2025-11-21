@@ -225,8 +225,15 @@ class usbSerial(QtWidgets.QWidget):  # Implementation based on: https://stackove
             self.gui.splashText("Func: " + str(inspect.stack()[2].function) + ", Tx: " + str(packet))
             if debug:
                 print("Func: " + str(inspect.stack()[2].function) + ", Tx: " + str(packet))
-            self.active_port.write(cobs.encode(bytes(packet)))
-            self.active_port.write(bytes(1))  # Send NULL framing byte
+            # CRITICAL: Combine COBS-encoded packet and NULL framing byte into a single write
+            # On Linux, separate writes can be split into different USB transfers, causing
+            # the device to receive incomplete packets. This ensures atomic transmission.
+            cobs_packet = cobs.encode(bytes(packet))
+            complete_packet = bytes(cobs_packet) + bytes(1)  # COBS packet + NULL byte
+            bytes_written = self.active_port.write(complete_packet)
+            if bytes_written != len(complete_packet):
+                self.showMessage("Error: Only " + str(bytes_written) + " of " + str(len(complete_packet)) +
+                                 " bytes were sent to LED driver. Please check connection.")
         else:
             self.gui.splashText("Func: " + str(inspect.stack()[2].function) + ", Tx: " + str(message))
             if debug:
