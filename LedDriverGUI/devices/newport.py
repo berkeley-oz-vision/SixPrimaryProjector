@@ -312,10 +312,12 @@ class NewPortWrapper:
                 'ANALOGFILTER': 4,
                 'Lambda': 550,
                 'AUTO': 0,
-                'RANge': 1,
+                'RANge': 1, #
+                'UNITs': 2 # watts
             }
             for k, v in settings.items():
                 nd.write(f"PM:{k} {str(v)}")
+                print(nd.ask(f"PM:{k}?"))
                 assert (nd.ask(f"PM:{k}?") == str(v))
             self.instrum = nd
         else:
@@ -370,11 +372,12 @@ class NewPortWrapper:
                     self.instrum = self.__init__()  # untested
         return power
 
-    def measurePowerAndStd(self, std_dev_thresh=0.001) -> float:
+    def measurePowerAndStd(self, std_dev_thresh=0.01) -> float:
         while True:
             mean_power, std_power = self.read_buffer()
+            print(mean_power, std_power)
             mean_power, std_power = float(mean_power) * 1000000.0, float(std_power) * 1000000.0  # in microwatts
-            if std_power < std_dev_thresh:  # make sure we take a stable measurement that isn't fluctuating like crazy
+            if std_power <  std_dev_thresh * mean_power:  # make sure we take a stable measurement that isn't fluctuating like crazy
                 return mean_power
 
     def setInstrumWavelength(self, wavelength):
