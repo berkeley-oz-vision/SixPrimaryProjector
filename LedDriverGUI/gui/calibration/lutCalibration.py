@@ -233,6 +233,7 @@ class LUTMeasurement(QThread):
         os.makedirs(self.gamma_directory, exist_ok=True)
 
     def runGammaCheck(self):
+        self.led_list = self.four_leds
         self.checkGammaDirectory()
         for led_idx, led in enumerate(self.led_list):
             self.setTableToMode(led)
@@ -286,8 +287,8 @@ class LUTMeasurement(QThread):
                 time.sleep(0.5)
         return
 
-    def runLutCalibration(self, level_set=16):
-        led_list = [3] # self.four_leds  # BGOR
+    def runLutCalibration(self, level_set=128):
+        led_list = self.four_leds  # BGOR
         max_powers = self.measureLevel(led_list, level_set)
         path_name = os.path.join(self.lut_directory, 'max-powers.npy')
         np.save(path_name, max_powers)
