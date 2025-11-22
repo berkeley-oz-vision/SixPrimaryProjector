@@ -382,10 +382,13 @@ class NewPortWrapper:
         assert (self.instrum.ask("PM:Lambda?") == str(wavelength))
 
     def zeroPowerMeter(self): # is zeroing the power meter working properly?
+        self.instrum.write(f"PM:ZEROVALue {0.000000}")
+        assert(self.instrum.ask("PM:ZEROVALue?") == "0.000000")
+        
         mean_power, std_power = self.measurePowerAndStd(std_dev_thresh=0.001)
         self.instrum.write("PM:ZEROSTOre")
-        val = self.instrum.ask("PM:ZEROVALue?")
-        print(f"Zeroing power meter. Measured mean power: {mean_power}, Std power: {std_power}, Zero value stored via function: {val}")
-        print("Is zero close to measurement? ", abs(mean_power - float(val)), abs(mean_power - float(val)) < 0.001)
+        saved_zero_value = self.instrum.ask("PM:ZEROVALue?")
+        print(f"Zeroing power meter. Measured mean power: {mean_power}, Std power: {std_power}, Zero value stored via function: {saved_zero_value}")
+        print("Is zero close to measurement? ", abs(mean_power - float(saved_zero_value)), abs(mean_power - float(saved_zero_value)) < std_power)
         
         # return float(self.instrum.ask("PM:ZEROVALue?"))
