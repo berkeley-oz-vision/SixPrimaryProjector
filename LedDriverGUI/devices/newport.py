@@ -324,7 +324,7 @@ class NewPortWrapper:
             print(nd.status)
             sys.exit(1)
 
-    def read_buffer(self, buff_size=10000, interval_ms=0.1):
+    def read_buffer(self, buff_size=10000, interval_ms=1):
         """
         Stores the power values at a certain wavelength.
         :param wavelength: float: Wavelength at which this operation should be done. float.
@@ -338,7 +338,7 @@ class NewPortWrapper:
             interval_ms * 10))  # to set 1 ms rate we have to give int value of 10. This is strange as manual says the INT should be in ms
         self.instrum.write('PM:DS:ENable 1')
         while int(self.instrum.ask('PM:DS:COUNT?')) < buff_size:  # Waits for the buffer is full or not.
-            time.sleep(0.001 * interval_ms * buff_size / 10)
+            time.sleep(0.01)
         actualwavelength = self.instrum.ask('PM:Lambda?')
         mean_power = self.instrum.ask('PM:STAT:MEAN?')
         std_power = self.instrum.ask('PM:STAT:SDEV?')
@@ -372,13 +372,16 @@ class NewPortWrapper:
                     self.instrum = self.__init__()  # untested
         return power
 
-    def measurePowerAndStd(self, std_dev_thresh=0.01) -> float:
+    def measurePowerAndStd(self, std_dev_thresh=0.001, ret_std=False) -> float:
         while True:
             mean_power, std_power = self.read_buffer()
-            print(mean_power, std_power)
             mean_power, std_power = float(mean_power) * 1000000.0, float(std_power) * 1000000.0  # in microwatts
-            if std_power <  std_dev_thresh * mean_power:  # make sure we take a stable measurement that isn't fluctuating like crazy
-                return mean_power
+            print(mean_power, std_power)
+            if std_power < std_dev_thresh:  # make sure we take a stable measurement that isn't fluctuating like crazy
+                if ret_std:
+                    return mean_power, std_power
+                else:
+                    return mean_power
 
     def setInstrumWavelength(self, wavelength):
         self.instrum.write(f"PM:Lambda {str(wavelength)}")
@@ -386,11 +389,13 @@ class NewPortWrapper:
 
     def zeroPowerMeter(self): # is zeroing the power meter working properly?
         self.instrum.write(f"PM:ZEROVALue {0.000000}")
-        assert(self.instrum.ask("PM:ZEROVALue?") == "0.000000")
-        
-        mean_power, std_power = self.measurePowerAndStd(std_dev_thresh=0.001)
-        self.instrum.write("PM:ZEROSTOre")
-        saved_zero_value = self.instrum.ask("PM:ZEROVALue?")
+        print("zero value", self.instrum.ask("PM:ZEROVALue?"))
+        mean_power = -1
+        while mean_power < 0:
+            mean_power, std_power = self.measurePowerAndStd(std_dev_thresh=0.001, ret_std=True)
+
+        self.instrum.write(f"PM:ZEROVALue {mean_power / 1000000.0}")
+        saved_zero_value = float(self.instrum.ask("PM:ZEROVALue?")) * 1000000.0
         print(f"Zeroing power meter. Measured mean power: {mean_power}, Std power: {std_power}, Zero value stored via function: {saved_zero_value}")
         print("Is zero close to measurement? ", abs(mean_power - float(saved_zero_value)), abs(mean_power - float(saved_zero_value)) < std_power)
         
