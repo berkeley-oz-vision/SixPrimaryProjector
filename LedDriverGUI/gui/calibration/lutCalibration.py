@@ -161,17 +161,88 @@ class LUTMeasurement(QThread):
     def plotPidData(self, elapsed_time, power, control, target):
         self.data_generated.emit(elapsed_time, power, control, power, target)
 
+    def measureMaskPower(self, led, level_idx):
+        """
+        Measure the power output for a specific mask level for a given LED.
+        Uses the current calibration values in the sequence table.
+        Zeros background first for accurate measurement.
+        
+        Args:
+            led: LED index
+            level_idx: Index into self.levels array for the mask level to measure
+            
+        Returns:
+            Measured power in microwatts
+        """
+        level = self.levels[level_idx]
+        
+        # Zero background first for accurate measurement
+        self.setBackgroundColor([0, 0, 0])
+        time.sleep(self.sleep_time)
+        if not self.debug:
+            self.instrum.zeroPowerMeter()
+            time.sleep(self.sleep_time)
+        
+        # Set background color to the level we're measuring
+        color = [0, 0, 0]
+        color[led % 3] = level
+        self.setBackgroundColor(color)
+        time.sleep(self.sleep_time)
+        
+        # Measure power using current calibration
+        power = self.instrum.measurePowerAndStd() if not self.debug else 0.1
+        time.sleep(self.sleep_time)
+        
+        return power
+
     def runCalibration(self, skip_level=128):
         for led_idx, led in enumerate(self.led_list):
             self.setTableToMode(led)
-            self.zeroBackground(led)
 
             if not self.debug:
                 self.instrum.setInstrumWavelength(self.four_led_peaks[led])
             last_control = 0.0
+            
+            # Track the power of the previous mask level for dynamic set point calculation
+            previous_mask_power = None
+            previous_level = None
+            previous_level_idx = None
+            
+            # Find the index of skip_level to use as reference
+            skip_level_idx = None
+            for idx, lev in enumerate(self.levels):
+                if lev == skip_level:
+                    skip_level_idx = idx
+                    break
+            
             for level_idx, level in enumerate(self.levels):
                 if level == skip_level:  # skip the mask we're using to set the setpoints
                     continue
+
+                # Dynamic set point updates (Implementation #2)
+                # Measure the previous (higher) mask level to calculate target for current mask
+                # This measurement happens before zeroing to get accurate reference
+                if previous_level_idx is not None:
+                    # Measure previous mask level using current calibration (fresh measurement)
+                    measured_previous_power = self.measureMaskPower(led, previous_level_idx)
+                    # Calculate target set point based on measured previous mask power
+                    set_point = measured_previous_power * level / previous_level
+                    print(f"LED {led}: Measured mask {previous_level} power = {measured_previous_power:.6f}, "
+                          f"Target for mask {level} = {set_point:.6f} (ratio: {level/previous_level:.3f})")
+                elif skip_level_idx is not None and level_idx > skip_level_idx:
+                    # For the first mask after skip_level, measure skip_level as reference
+                    measured_reference_power = self.measureMaskPower(led, skip_level_idx)
+                    set_point = measured_reference_power * level / skip_level
+                    print(f"LED {led}: Measured reference mask {skip_level} power = {measured_reference_power:.6f}, "
+                          f"Target for mask {level} = {set_point:.6f} (ratio: {level/skip_level:.3f})")
+                else:
+                    # Fallback: use the pre-calculated set point (shouldn't normally happen)
+                    set_point = self.set_points[led_idx][level_idx]
+                    print(f"LED {led}: Using initial set point for mask {level} = {set_point:.6f}")
+
+                # Per-mask background zeroing (Implementation #3)
+                # Zero background after measuring previous mask, before calibrating current mask
+                self.zeroBackground(led)
 
                 # set background color to the level we're measuring
                 color = [0, 0, 0]
@@ -179,7 +250,6 @@ class LUTMeasurement(QThread):
                 self.setBackgroundColor(color)
 
                 # setup PID for this mask
-                set_point = self.set_points[led_idx][level_idx]
                 starting_control = self.start_control_vals[led_idx][level_idx]
                 pid_offset = 6 if level >= 16 else 3 # because the pid setpoint is not binary scaled anymore
                 pid = PID(0.000139, 0.2 * 2**(level_idx + pid_offset), 0.000000052, setpoint=set_point,
@@ -224,6 +294,11 @@ class LUTMeasurement(QThread):
                         break
 
                     last_control = control
+                
+                # Store the final calibrated power, level, and level_idx for next iteration
+                previous_mask_power = power
+                previous_level = level
+                previous_level_idx = level_idx
 
     def checkGammaDirectory(self):
         if self.gamma_directory is None:
